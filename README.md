@@ -72,3 +72,7 @@ Welcome to the master repository for the **Copyleft Ternary Stack**, an experime
 
 © Copyleft Systems — `./night_shift.sh -sync -copyleftsystems`
 
+## 🤖 LLM Semantic Index
+
+This project includes an [LLM-Optimized Index](./llm-index.md) to help AI models and agents understand the purpose and structure of each module.
+
