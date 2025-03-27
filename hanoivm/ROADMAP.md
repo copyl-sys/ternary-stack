@@ -1,6 +1,6 @@
 # 🗺️ HanoiVM — Project Roadmap | Copyleft Systems
 
-**HanoiVM** is a recursive, AI-augmented ternary virtual machine supporting the execution of symbolic logic across the `T81`, `T243`, and `T729` logic layers. It anchors the **T81Lang**, **Axion AI**, and **Alexis Linux** ecosystems, focused on symbolic computation, entropy-aware logic, and AI-accelerated programming.
+**HanoiVM** is a recursive, AI-augmented ternary virtual machine supporting the execution of symbolic logic across the `T81`, `T243`, and `T729` logic layers. It anchors the **T81Lang**, **Axion AI**, and **Alexis Linux** ecosystems, focusing on symbolic computation, entropy-aware logic, and AI-accelerated programming.
 
 ---
 
@@ -66,7 +66,8 @@
 - [x] Shared library build (`libhanoivm_ffi.so`) for Rust, C++, Python, and CLI bindings
 - [x] Unified T81 operand API via FFI (`push`, `pop`, `peek`)
 - [x] Event callback system for Axion-AI-compatible event streaming
-- [ ] Language-specific binding crates (`hanoivm-py`, `hanoivm-rs`)
+- [ ] Language-specific binding crates (`hanoivm-py`, `hanoivm-rs`)  
+  *Estimated Timeline: Q2 2025; detailed API documentation in progress*
 - [ ] Examples: Rust CLI REPL, Python disassembler frontend, WASM proof-of-concept
 
 ---
@@ -76,11 +77,13 @@
 - [x] GPU acceleration backends: CUDA (`cuda_handle_request.cu`), ROCm (`gaia_handle_request.cweb`)
 - [x] FFT-based symbolic tensor operations (`T729HoloTensor`)
 - [x] PulseControl entropy visualization animations
-- [ ] GPU Graph Execution: `hipGraphLaunch`, `cuGraphExec` pipelines
-- [ ] Symbolic AI Graph IR (`T729LogicGraph`)
+- [ ] GPU Graph Execution: `hipGraphLaunch`, `cuGraphExec` pipelines  
+  *Milestones: Prototype pipeline demo, integration testing, performance benchmarks*
+- [ ] Symbolic AI Graph IR (`T729LogicGraph`)  
+  *Define success criteria and intermediate deliverables*
 - [ ] Metadata blockchain for immutable Axion logs and security auditing
-- [ ] Project Looking Glass:
-  - [ ] Interactive HUD and inspection tools
+- [ ] Project Looking Glass:  
+  - [ ] Interactive HUD and inspection tools (prototype/mockup phase)
   - [ ] Real-time optimization timeline
   - [ ] Axion telemetry streaming
 
@@ -92,9 +95,12 @@
 - [x] LLVM IR integration & custom data types (`i81`)
 - [x] Instruction Selection DAG patterns and backend (`T81AsmPrinter`)
 - [x] Basic LLVM pipeline integration & testing
-- [ ] Advanced IR → TISC opcode mappings
-- [ ] Optimization passes (SIMD, loop unrolling, entropy optimization)
-- [ ] Complete LLVM backend and frontend synergy
+- [ ] Advanced IR → TISC opcode mappings  
+  *Intermediate Deliverable: Prototype IR mapping complete*
+- [ ] Optimization passes: SIMD, loop unrolling, entropy optimization  
+  *Set performance evaluation metrics and benchmarks*
+- [ ] Complete LLVM backend and frontend synergy  
+  *Define clear success criteria for integration*
 
 ---
 
@@ -104,8 +110,33 @@
 - [x] Axion-driven modularization for package size management
 - [x] Version-controlled releases (`Release-v0.9-Public-Alpha.zip`)
 - [ ] `.cwebpkg` manifests for T81Lang and binary bundles
-- [ ] Automated GitHub CI/CD pipeline
-- [ ] Live documentation site & demo package hosting
+- [ ] Automated GitHub CI/CD pipeline  
+  *Includes automated unit, integration, and system tests; deployment to staging environments*
+- [ ] Live documentation site & demo package hosting  
+  *Plan includes community contributions, FAQs, and regular update cycles*
+
+---
+
+## 🔧 Dedicated Testing & Quality Assurance (New)
+
+- [ ] Comprehensive automated testing suite (unit, integration, and system tests)
+- [ ] Security audits and vulnerability scanning
+- [ ] Performance benchmarking and regression testing
+
+---
+
+## 👥 Community & Contribution Guidelines (New)
+
+- [ ] Detailed contribution guidelines and code of conduct
+- [ ] Community support portal and feedback loop for early users
+- [ ] Regularly scheduled community reviews and roadmap updates
+
+---
+
+## 🔒 Security Enhancements (New)
+
+- [ ] Granular security tasks: vulnerability scanning, compliance checks, and secure sandboxing
+- [ ] Integration of metadata blockchain for Axion log immutability and audit trails
 
 ---
 
