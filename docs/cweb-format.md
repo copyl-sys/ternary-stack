@@ -1,158 +1,159 @@
 # 📦 .cweb Format Specification (Axion Package System)
 
-`.cweb` is a plaintext, AI-aware packaging format used by the Axion AI module to manage, optimize, and build software in the Copyleft Ternary Stack. It defines how packages are described, compiled, split, versioned, and deployed across the stack.
+`.cweb` is a plaintext, AI-aware packaging format used by the Axion AI module to manage, optimize, and build software in the Copyleft Ternary Stack. It defines how packages are described, compiled, split, versioned, and introspected—including symbolic metadata and entropy annotations.
 
 ---
 
 ## 🧾 File Overview
 
-A `.cweb` file is structured into **predefined sections** with optional AI or security flags. Files over 50MB are auto-split by Axion into modular subcomponents.
+A `.cweb` file is structured into **predefined sections** with optional AI, symbolic, or security metadata. Files over 50MB are auto-split by Axion into modular subcomponents.
 
-Example:
-```cweb
-@name: hanoi-vm
-@version: 0.3.1
-@description: Recursive ternary virtual machine for T81/T243/T729 logic
+### ✨ Auto-generated Example (from `t81_compile.py`)
+```json
+@name: t81-sample-module
+@version: 0.1.0
+@description: Auto-generated from T81Lang parser (t81-sample-module)
 @license: GPL-3.0
-@homepage: https://github.com/copyl-sys/hanoivm
 
 @source:
-  type: git
-  url: https://github.com/copyl-sys/hanoivm.git
-  commit: 1a2b3c4
+  type: local
+  path: ./t81-sample-module/
 
 @build:
-  system: make
+  system: custom
   flags:
     - -DUSE_AXION
-    - -O3
 
 @dependencies:
-  build:
-    - axion-core
-  runtime:
-    - t81-runtime >= 0.2.0
-
-@arch:
-  - x86_64
-  - aarch64
-  - riscv64
+  runtime: []
 
 @ai:
   optimize: true
   entropy-feedback: true
 
-@binary:
-  supported: false
-
-@security:
-  sandbox: true
-  rollback: true
-
-@logs:
-  format: json
-  retention: infinite
-
 @split:
-  enabled: true
+  enabled: false
   max_size_mb: 50
+
+@symbols:
+  - symbol: ⍺
+    entropy: 0.82
+    tag: "checksum"
+  - symbol: β
+    entropy: 0.42
+    tag: "probe"
 ```
 
 ---
 
 ## 📚 Required Headers
 
-| Field       | Description |
-|-------------|-------------|
-| `@name`     | Unique package identifier |
-| `@version`  | Follows semver (`X.Y.Z`) |
-| `@description` | One-line explanation |
-| `@license`  | SPDX license ID |
-| `@homepage` | Optional URL to docs or repo |
+| Field         | Description |
+|---------------|-------------|
+| `@name`       | Unique package/module identifier |
+| `@version`    | Follows semver (`X.Y.Z`) |
+| `@description`| Short human-readable summary |
+| `@license`    | SPDX license string |
+| `@source`     | Path or git location of source files |
 
 ---
 
 ## 🔨 Build System Options
 
 - `make`, `cmake`, `meson`, `cargo`, `custom`
-- Axion can generate build plans dynamically using AI inference
+- Axion can generate or override these with build plans using entropy analysis
 
 ---
 
 ## 📦 Dependency Types
 
-- `build:` for tools needed during compilation
-- `runtime:` for linked libraries or systems used during execution
-- Optional `optional:` with `use`-like flags
+- `runtime:` → Required during execution
+- `build:` → Needed during compilation
+- `optional:` → May depend on `use`-flags or architecture constraints
 
 ---
 
 ## 🧠 AI Fields
 
-| Field            | Description |
-|------------------|-------------|
-| `optimize`       | Enables AI optimization routines (e.g., compile-time heuristics) |
-| `entropy-feedback` | Enables feedback loop from runtime entropy tracing to recompile/restructure |
+| Field               | Description |
+|---------------------|-------------|
+| `optimize`          | Enables compile-time optimization from Axion’s AI engine |
+| `entropy-feedback`  | Enables recursive recompilation based on entropy trace logs |
+
+These influence `t81_compile.py` and future build flows that incorporate entropy heuristics and symbolic modeling.
 
 ---
 
 ## 🔐 Security Fields
 
-- `sandbox:` isolates build in a jailed environment
-- `rollback:` supports reversion if anomaly or corruption detected
+- `sandbox:` → Enables isolated builds
+- `rollback:` → Allows auto-revert if anomalies are found
+
+---
+
+## 📊 Symbol Metadata: `@symbols`
+
+Symbol table exported from `t81_compile.py`’s entropy logger:
+```json
+@symbols:
+  - symbol: ⍺
+    entropy: 0.82
+    tag: "checksum"
+  - symbol: β
+    entropy: 0.42
+    tag: "probe"
+```
+
+This field allows Axion to:
+- Model runtime entropy
+- Track symbolic feedback loops
+- Auto-partition modules using symbolic weights
 
 ---
 
 ## 🗂️ File Splitting (Auto-Modularization)
 
 Axion will:
-- Split any `.cweb`-defined package > 50MB into submodules (e.g., `core`, `drivers`, `utils`)
-- Maintain linkage integrity and dependency resolution
-- Log reasoning behind splits (stored in `logs/` with timestamped JSON/XML)
-
-Example:
-```
-linux-core.cweb
-linux-drivers.cweb
-linux-tools.cweb
-```
+- Split packages > 50MB into components (e.g., `core`, `ai`, `utils`)
+- Preserve metadata and dependency links
+- Log rationale in `logs/` directory in JSON or XML format
 
 ---
 
 ## 📁 Suggested Folder Structure
-
 ```bash
 mypackage/
 ├── mod.cweb
 ├── src/
 ├── include/
-├── tests/
 ├── ai/
+├── tests/
 ├── build.sh
 └── logs/
 ```
 
 ---
 
-## 🛡️ Blockchain & Verification (Planned)
+## 🔗 Blockchain & Verification (Planned)
 
-- All `.cweb` packages will be optionally tracked in a local metadata blockchain
-- Package hashes, logs, and build signatures will be stored and verifiable
-- Distributed peer audit mode for public `.cweb` registries
+- Metadata hashes logged on local AI-secure chain
+- Optionally synced to Axion HiveNet peer nodes
+- Full audit trail for package transformations and entropy shifts
 
 ---
 
 ## 🧩 Usage With Axion
-
 ```bash
-axion install hanoi-vm.cweb
-axion build hanoi-vm
-axion log-view hanoi-vm --format=json
+axion install mod.cweb
+axion build mod
+axion log-view mod --format=json
 ```
+
+Generated `.cweb` files (like `t81-sample-module.cweb`) can be directly passed to Axion tooling, entropy analyzers, or symbolic report generators.
 
 ---
 
-Last updated: March 2025
-Maintained by: `copyleft systems`
+Last updated: March 2025  
+Maintained by: `copyleft systems`  
 Mode: `./night_shift.sh -sync -copyleftsystems`
 
