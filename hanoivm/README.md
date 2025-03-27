@@ -27,6 +27,9 @@ Designed for research, language development, and future ternary hardware acceler
 - ⚡ **GPU Acceleration via GAIA**:
   - AMD: `gaia_handle_request.cweb` (HIP)
   - NVIDIA: `cuda_handle_request.cu` (CUDA)
+- 🧩 **Cross-Language FFI Support**:
+  - `hanoivm_ffi.cweb` provides a C ABI interface
+  - Shared library (`libhanoivm_ffi.so`) allows Rust, Python, C++ integration
 - 🖼️ **3D Visualization via Looking Glass**:
   - `FrameSceneBuilder.cweb` renders recursion traces in jMonkeyEngine
   - Axion overlays, ternary geometry, and entropy pulse animation
@@ -36,10 +39,9 @@ Designed for research, language development, and future ternary hardware acceler
   - Disassembles `.hvm` with symbolic introspection
   - CI-compatible tests + kernel-mode driver for system-level validation
 
-
 ---
 
-## 📦 New: T81Lang Compiler Stack
+## 📦 T81Lang Compiler Stack
 
 The T81Lang toolchain is now fully integrated with HanoiVM:
 
@@ -49,6 +51,34 @@ The T81Lang toolchain is now fully integrated with HanoiVM:
 - ✅ **.hvm Emitter** for virtual machine execution
 - ✅ **HVM Interpreter** with register-based runtime
 - ✅ **CLI Compiler** via `t81lang_compiler.cweb`
+
+---
+
+## 🔗 FFI & Cross-Language Integration
+
+HanoiVM now supports **multi-language embedding** using the C-compatible FFI layer.
+
+### 🔧 Compile the Shared Library:
+
+```bash
+make libhanoivm_ffi.so
+```
+
+### 📚 Available APIs:
+
+- `hvm_create()` / `hvm_destroy()`
+- `hvm_stack_push()` / `hvm_stack_pop()` / `hvm_stack_peek()`
+- `hvm_execute()` for virtual machine execution
+- `hvm_set_event_callback()` for custom logging or AI hooks
+
+### 🧩 Use In:
+
+- **Rust** via `bindgen` or `cxx`
+- **Python** via `ctypes` or `cffi`
+- **C++** via native linkage
+
+See `hanoivm_ffi.cweb` for full documentation.
+
 ---
 
 ## 🗂️ Repository Overview
@@ -56,6 +86,7 @@ The T81Lang toolchain is now fully integrated with HanoiVM:
 ```bash
 src/
 ├── hanoivm_vm.cweb               # Main interpreter engine
+├── hanoivm_ffi.cweb              # FFI interface (→ libhanoivm_ffi.so)
 ├── advanced_ops.cweb             # TNN, matrix, AI primitive opcodes
 ├── advanced_ops_ext.cweb         # T243/T729 extensions: FSM, intent, FFT
 ├── t243bigint.cweb               # BigInt math in ternary (T243)
@@ -70,31 +101,13 @@ src/
 ├── recursion_exporter.cweb       # Export symbolic trace to `.t81viz`
 ├── FrameSceneBuilder.cweb        # 3D recursion visualizer with jMonkeyEngine
 ├── tisc_backend.cweb             # TISC backend compiler
-
-tests/
-├── hanoivm-test.cweb             # Kernel-mode debugfs test harness
-├── test_advanced_hvm.cweb        # Test AI macros, recursion, control flow
-├── t729tensor_to_string.cweb     # Tensor stringification for debug/logs
-
-docs/
-├── ROADMAP.md
-├── CHANGELOG.md
-├── t243_t729.md                  # Documentation for FSM, Intent, FFT
-
-scripts/
-├── disasm_*.sh                   # Bytecode disassembler tests
-
-bazel/
-├── BUILD                         # Bazel config for modular builds
-
-README.md                         # You are here
 ```
 
 ---
 
 ## ⚙️ Getting Started
 
-### 🔧 Build
+### 🔧 Build with Bazel
 
 ```bash
 bazel build //...
@@ -115,7 +128,9 @@ sudo insmod hanoivm-test.ko
 cat /sys/kernel/debug/hanoivm-test
 ```
 
-### 🔬 Tier Execution Demo
+---
+
+## 🔬 Tier Execution Demo
 
 ```bash
 bazel run //:recursive_tier_execution -- --max-depth=36
@@ -160,23 +175,23 @@ bazel run //:recursive_tier_execution -- --max-depth=36
 ✅ Pattern dispatch and entropy signal handling  
 ✅ Axion AI integration with rollback and NLP  
 ✅ GPU offload (HIP + CUDA) for symbolic macros  
+✅ FFI support: `libhanoivm_ffi.so` (Rust/C++/Python)  
 ✅ Verbose `.hvm` disassembler and type introspection  
 ✅ Kernel-level testing (`debugfs`)  
 ✅ `.t81viz` recursion trace export  
 ✅ 3D visualizer: `FrameSceneBuilder.cweb` + `PulseControl`  
 🔜 Live REPL for `.t81` to `.hvm`  
 🔜 LLVM IR export for hybrid backend  
-🔜 Mouse-hover tooltips + optimization timeline overlay  
 🔜 Axion live log streaming in visualization mode  
 
 ---
 
 ## 🔗 Related Projects
 
-- [**Axion AI**](https://github.com/copyl-sys) — AI optimizer and rollback kernel
-- **T81Lang** — Ternary language for symbolic logic + AI macros
-- [**Alexis Linux**](https://github.com/copyl-sys) — AI-first OS with ternary kernel base
-- **Project Looking Glass** — 3D GUI for recursion visualization and stack tiering
+- [**Axion AI**](https://github.com/copyl-sys) — AI optimizer and rollback kernel  
+- **T81Lang** — Ternary language for symbolic logic + AI macros  
+- [**Alexis Linux**](https://github.com/copyl-sys) — AI-first OS with ternary kernel base  
+- **Project Looking Glass** — 3D GUI for recursion visualization and stack tiering  
 
 ---
 
@@ -187,86 +202,3 @@ bazel run //:recursive_tier_execution -- --max-depth=36
 ---
 
 > 🧠 “Recursion is not just a structure — it’s the soul of ternary.”
-
-
-Here’s an **overview** of all the `.cweb` documents provided so far. Each `.cweb` file is part of our  larger ternary logic and system architecture, and they serve various roles in your project. Here’s a breakdown:
-
-### 1. **`axion-gaia-interface.cweb`**
-   - **Purpose**: Defines the GPU dispatch interface for ternary logic, bridging the **HanoiVM** ternary virtual machine and the **Axion Kernel Module** with GPU backends (GAIA/ROCm and CUDA).
-   - **Key Features**:
-     - Dispatches ternary macros.
-     - Supports symbolic processing and intent-based computation.
-     - Includes stubs for future backend integration.
-   
-### 2. **`axion-ai.cweb`**
-   - **Purpose**: This file is a fully implemented **AI-powered kernel module** for **Axion**, enabling AI-driven resource management and anomaly detection.
-   - **Key Features**:
-     - Supports **ternary binary execution** (TBIN).
-     - Implements **self-healing**, rollback mechanisms, and ternary-aware package management.
-     - Integrates with natural language commands and telemetry logging.
-     - Includes a **ternary instruction set** and simulated GPU usage.
-
-### 3. **`config.cweb`**
-   - **Purpose**: Centralizes configuration for the **HanoiVM** project and **Axion AI** kernel module.
-   - **Key Features**:
-     - Includes settings for **hardware acceleration** (PCIe, GPU).
-     - Manages **AI optimization**, **logging**, and **resource management**.
-     - Provides **environment detection** and **global ternary logic modes**.
-
-### 4. **`disassembler.cweb`**
-   - **Purpose**: Handles the disassembly of ternary bytecode in **HanoiVM**.
-   - **Key Features**:
-     - Decodes **T81 operands** and extended operand types like **BIGINT**, **FLOAT**, and **FRACTION**.
-     - Translates opcodes, provides verbose output, and can dump data in **hex**.
-     - Supports **JSON output** and session-aware disassembly integration.
-     - Includes **entropy warnings** and symbolic operand decoding.
-
-### 5. **`hanoivm_vm.cweb`**
-   - **Purpose**: The core execution engine for **HanoiVM**, which handles recursion, stack promotion, and interaction with **Axion AI** hooks.
-   - **Key Features**:
-     - Interprets **.hvm bytecode** using the defined **Opcode** enum.
-     - Integrates with **Axion AI** for runtime safety and optimization.
-     - Manages the stack and recursion logic.
-     - **Refactorable for synergy** with other modules like `config.cweb`.
-
-### 6. **`hvm_promotion.cweb`** / **`t81_stack.cweb`**
-   - **Purpose**: Manages the **stack promotion** and **ternary stack** operations within **HanoiVM**.
-   - **Key Features**:
-     - Handles **recursion engine** data.
-     - Implements **JSON execution logging** for **postmortem analysis**.
-     - Integrates **Axion entropy tracing** for better performance and analysis within `evaluate_opcode()`.
-
-### 7. **`advanced_ops_ext.cweb`**
-   - **Purpose**: Introduces advanced ternary data types and operations, specifically focusing on symbolic execution within **HanoiVM**.
-   - **Key Features**:
-     - Implements data types like **T243MarkovMatrix**, **T243Symbol**, **T729EntropyBlob**, **T243Circuit**, **T243MorphicTag**, and **T729MindMap**.
-     - Supports complex ternary logic, symbolic execution, and higher-order ternary computation.
-
-### 8. **`t81_patterns.cweb`**
-   - **Purpose**: Defines reusable **T81-based ternary logic templates** and **computational macros**.
-   - **Key Features**:
-     - Includes standard ternary patterns for general use across **HanoiVM** and **Axion AI**.
-     - Provides optimized ternary operations that can be reused in different contexts for efficiency.
-
-### 9. **`t81_stack.cweb`** (Additional Reference)
-   - **Purpose**: Implements and manages stack operations in ternary logic, supporting operations like **push**, **pop**, and **stack manipulation**.
-   - **Key Features**:
-     - Focused on stack management within **HanoiVM** for ternary data structures.
-     - Supports **recursive functions** and stack-based optimizations.
-
----
-
-### **High-Level Module Interaction**
-
-- **`axion-ai.cweb`** and **`hanoivm_vm.cweb`** are central to the AI-driven and ternary execution aspects of your system. 
-  - They enable AI-driven optimization, real-time resource management, and ternary logic execution (through the **HanoiVM** engine).
-  
-- **`config.cweb`** ties these modules together, allowing centralized configuration for both hardware and logic.
-  
-- **`disassembler.cweb`** provides visibility into **HanoiVM** bytecode execution, allowing you to inspect and debug ternary code at a low level.
-
-- **`advanced_ops_ext.cweb`** and **`t81_patterns.cweb`** are higher-level utility modules that introduce additional computational power and reusable ternary logic templates for use in **HanoiVM**.
-
----
-
-This modular setup allows for a robust and flexible ternary computing ecosystem, focusing on optimization, symbolic computation, and AI-driven resource management across the various components.
