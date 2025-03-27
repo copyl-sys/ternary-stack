@@ -113,6 +113,7 @@ cuda_handle_request.cweb     | CUDA GPU symbolic tensor dispatcher
 disassembler.cweb            | Bytecode and symbolic data decoder
 disasm_hvm.cweb              | Recursive symbolic bytecode disassembler
 emit_hvm.cweb                | T81Lang bytecode generation tool
+gaia_graph_pipeline.cweb     | GPU-accelearted graph processing
 gaia_handle_request.cweb     | ROCm/HIP GPU execution dispatcher
 ghidra_hvm_plugin.cweb       | Ghidra plugin for `.hvm` analysis
 hanoivm_vm.cweb              | Core VM interpreter and recursion engine
