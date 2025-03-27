@@ -1,8 +1,11 @@
-# T81Lang Parser + AST → TISC Backend with Symbolic Metadata, Entropy Tracker, and .cweb Generator
-# Language: Python 3.x
+#!/usr/bin/env python3
+# File: t81_compile.py
+# Purpose: T81Lang CLI compiler — tokenize, parse, emit TISC, generate .cweb metadata
 
 import re
 import json
+import argparse
+import os
 
 # --- Token Specs ---
 KEYWORDS = {"let", "mut", "fn", "return"}
@@ -164,27 +167,40 @@ def generate_cweb_module(module_name, version="0.1.0"):
         "@symbols": entropy_log
     }
 
-# --- Sample Program ---
-sample_code = """
-fn main() -> T81Int {
-    let ⍺: T81Int = 27t + 54t @entropy(0.82) @tag("checksum");
-    let β: Symbol<T81Float> = 9t @entropy(0.42) @tag("probe");
-    return ⍺;
-}
-"""
+# --- CLI Entry Point ---
+def main():
+    parser = argparse.ArgumentParser(description="T81Lang Compiler — Parser → TISC + .cweb")
+    parser.add_argument("--input", type=str, required=True, help="Path to .t81 source file")
+    parser.add_argument("--emit-cweb", action="store_true", help="Also emit .cweb metadata")
+    parser.add_argument("--out", type=str, default="out/", help="Output folder")
+    args = parser.parse_args()
 
-module_name = "t81-sample-module"
-tokens = tokenize(sample_code)
-ast = parse_function(tokens)
+    os.makedirs(args.out, exist_ok=True)
+    with open(args.input, 'r', encoding='utf-8') as f:
+        source = f.read()
 
-print("--- AST (JSON) ---")
-print(json.dumps(ast.to_dict(), indent=2))
+    module_name = os.path.splitext(os.path.basename(args.input))[0]
+    tokens = tokenize(source)
+    ast = parse_function(tokens)
 
-print("\n--- TISC Output ---")
-print(emit_tisc(ast))
+    # Write AST JSON
+    with open(f"{args.out}/{module_name}.ast.json", 'w') as f:
+        json.dump(ast.to_dict(), f, indent=2)
 
-print("\n--- Entropy Log ---")
-print(json.dumps(entropy_log, indent=2))
+    # Write TISC
+    with open(f"{args.out}/{module_name}.tisc", 'w') as f:
+        f.write(emit_tisc(ast))
 
-print("\n--- Generated .cweb ---")
-print(json.dumps(generate_cweb_module(module_name), indent=2))
+    # Write entropy log
+    with open(f"{args.out}/{module_name}.entropy.json", 'w') as f:
+        json.dump(entropy_log, f, indent=2)
+
+    # Optionally write .cweb
+    if args.emit_cweb:
+        with open(f"{args.out}/{module_name}.cweb", 'w') as f:
+            json.dump(generate_cweb_module(module_name), f, indent=2)
+
+    print(f"✅ Compiled '{args.input}' → {args.out}")
+
+if __name__ == "__main__":
+    main()
