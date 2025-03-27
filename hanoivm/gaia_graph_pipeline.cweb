@@ -1,16 +1,20 @@
 @* gaia_graph_pipeline.cweb
-This document refactors the minimal GPU graph pipeline for integration with Hanoivm.
-It defines an internal graph structure and a wrapper function to process a graph using GPU acceleration.
+This document demonstrates the integration of a GPU-accelerated graph pipeline within Hanoivm.
+It includes an expanded internal graph structure and additional utility functions for:
+- Graph creation and printing.
+- Profiling the GPU execution.
+- Converting internal graph representations.
+- Running the GPU graph pipeline.
 
 Recommendations:
 1. **Interface Integration:**  
-   Use the provided wrapper to convert internal Hanoivm graph structures into an edge list for GPU processing.
-2. **Error Handling & Logging:**  
-   The CUDA_CALL macro provides basic error checking, which can be expanded with logging as needed.
+   Use the conversion and creation functions to adapt Hanoivm's native graph data into the hvm_graph format.
+2. **Profiling & Debugging:**  
+   Use the profiling function to capture execution time and the print function for debugging.
 3. **Modular Design:**  
-   The integration function isolates GPU execution details from the higher-level Hanoivm logic.
+   The functions encapsulate GPU execution details from higher-level Hanoivm logic, allowing for future expansion.
 4. **Future Expansion:**  
-   Expand the internal graph structure and conversion logic if your Hanoivm graph representation evolves.
+   Adapt the conversion function to handle more complex internal representations if Hanoivm evolves.
 
 @c
 #include <stdio.h>
@@ -18,7 +22,7 @@ Recommendations:
 #include <cuda_runtime.h>
 
 @* Define error checking macro.
-This macro wraps CUDA calls for error diagnostics.
+This macro wraps CUDA API calls to catch and report errors.
 @c
 @<Error Checking Macros@>=
 #define CUDA_CALL(call)                                     \
@@ -34,7 +38,7 @@ This macro wraps CUDA calls for error diagnostics.
 
 @* Kernel Function.
 This kernel computes the degree for each vertex in the provided edge list.
-Each edge is represented as a pair (u, v), and degrees are updated using atomic operations.
+Each edge is represented as a pair (u, v) and degrees are updated using atomic operations.
 @c
 __global__ void computeDegrees(int *edges, int numEdges, int *degrees) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -51,52 +55,140 @@ __global__ void computeDegrees(int *edges, int numEdges, int *degrees) {
 }
 
 @* Internal Hanoivm Graph Structure.
-This structure represents the graph as used within Hanoivm.
+This structure represents a graph as used within Hanoivm.
+It includes the number of vertices, number of edges, and an edge list.
 @c
 typedef struct {
     int numVertices;
     int numEdges;
-    int *edges; // Array of edges, where each edge is represented by two integers.
+    int *edges; // Array of edges; each edge consists of two integers.
 } hvm_graph;
 
+@* create_hvm_graph.
+Dynamically allocates and initializes an hvm_graph with the given parameters.
+Note: The edge list is copied from the provided array.
+@c
+hvm_graph *create_hvm_graph(int numVertices, int numEdges, const int *edgeArray) {
+    hvm_graph *graph = (hvm_graph *)malloc(sizeof(hvm_graph));
+    if (!graph) {
+        fprintf(stderr, "Error allocating hvm_graph structure.\n");
+        exit(EXIT_FAILURE);
+    }
+    graph->numVertices = numVertices;
+    graph->numEdges = numEdges;
+    graph->edges = (int *)malloc(numEdges * 2 * sizeof(int));
+    if (!graph->edges) {
+        fprintf(stderr, "Error allocating edge array.\n");
+        free(graph);
+        exit(EXIT_FAILURE);
+    }
+    for (int i = 0; i < numEdges * 2; i++) {
+        graph->edges[i] = edgeArray[i];
+    }
+    return graph;
+}
+
+@* free_hvm_graph.
+Frees the memory allocated for an hvm_graph.
+@c
+void free_hvm_graph(hvm_graph *graph) {
+    if (graph) {
+        if (graph->edges)
+            free(graph->edges);
+        free(graph);
+    }
+}
+
+@* print_hvm_graph.
+Prints the graph details for debugging purposes.
+@c
+void print_hvm_graph(const hvm_graph *graph) {
+    printf("Graph: %d vertices, %d edges\n", graph->numVertices, graph->numEdges);
+    for (int i = 0; i < graph->numEdges; i++) {
+        printf("Edge %d: (%d, %d)\n", i, graph->edges[2*i], graph->edges[2*i+1]);
+    }
+}
+
+@* profile_gaia_graph_pipeline.
+Profiles the execution of the GPU graph pipeline by measuring the time taken to run the pipeline.
+It uses CUDA events for high-resolution timing.
+@c
+float profile_gaia_graph_pipeline(const hvm_graph *graph, int *vertex_degrees) {
+    cudaEvent_t start, stop;
+    CUDA_CALL(cudaEventCreate(&start));
+    CUDA_CALL(cudaEventCreate(&stop));
+
+    CUDA_CALL(cudaEventRecord(start, 0));
+    // Execute the GPU graph pipeline.
+    // (Calls the run_gaia_graph_pipeline function defined below.)
+    // Note: The vertex_degrees array should be pre-allocated by the caller.
+    {
+        int *d_edges, *d_degrees;
+        size_t edgesSize = graph->numEdges * 2 * sizeof(int);
+        size_t degreesSize = graph->numVertices * sizeof(int);
+
+        CUDA_CALL(cudaMalloc((void**)&d_edges, edgesSize));
+        CUDA_CALL(cudaMalloc((void**)&d_degrees, degreesSize));
+
+        CUDA_CALL(cudaMemcpy(d_edges, graph->edges, edgesSize, cudaMemcpyHostToDevice));
+        CUDA_CALL(cudaMemset(d_degrees, 0, degreesSize));
+
+        int threadsPerBlock = 256;
+        int blocks = (graph->numEdges + threadsPerBlock - 1) / threadsPerBlock;
+        computeDegrees<<<blocks, threadsPerBlock>>>(d_edges, graph->numEdges, d_degrees);
+        CUDA_CALL(cudaGetLastError());
+        CUDA_CALL(cudaDeviceSynchronize());
+
+        CUDA_CALL(cudaMemcpy(vertex_degrees, d_degrees, degreesSize, cudaMemcpyDeviceToHost));
+
+        CUDA_CALL(cudaFree(d_edges));
+        CUDA_CALL(cudaFree(d_degrees));
+    }
+    CUDA_CALL(cudaEventRecord(stop, 0));
+    CUDA_CALL(cudaEventSynchronize(stop));
+
+    float elapsedTime;
+    CUDA_CALL(cudaEventElapsedTime(&elapsedTime, start, stop));
+    CUDA_CALL(cudaEventDestroy(start));
+    CUDA_CALL(cudaEventDestroy(stop));
+    return elapsedTime;
+}
+
 @* run_gaia_graph_pipeline.
-This function wraps the GPU pipeline for integration.
-It accepts an hvm_graph pointer and an output array for vertex degrees.
+A wrapper function that executes the GPU graph pipeline using the provided hvm_graph.
+It populates the vertex_degrees array with the computed degrees.
 @c
 void run_gaia_graph_pipeline(const hvm_graph *graph, int *vertex_degrees) {
+    // This function directly calls the profiling block without measuring time.
+    // Use profile_gaia_graph_pipeline if timing is needed.
     int *d_edges, *d_degrees;
     size_t edgesSize = graph->numEdges * 2 * sizeof(int);
     size_t degreesSize = graph->numVertices * sizeof(int);
 
-    // Allocate device memory.
     CUDA_CALL(cudaMalloc((void**)&d_edges, edgesSize));
     CUDA_CALL(cudaMalloc((void**)&d_degrees, degreesSize));
 
-    // Copy the edge list from the internal graph to device memory.
     CUDA_CALL(cudaMemcpy(d_edges, graph->edges, edgesSize, cudaMemcpyHostToDevice));
-    // Initialize device degrees array to zero.
     CUDA_CALL(cudaMemset(d_degrees, 0, degreesSize));
 
-    // Launch the kernel.
     int threadsPerBlock = 256;
     int blocks = (graph->numEdges + threadsPerBlock - 1) / threadsPerBlock;
     computeDegrees<<<blocks, threadsPerBlock>>>(d_edges, graph->numEdges, d_degrees);
     CUDA_CALL(cudaGetLastError());
     CUDA_CALL(cudaDeviceSynchronize());
 
-    // Copy the computed degrees back to the output array.
     CUDA_CALL(cudaMemcpy(vertex_degrees, d_degrees, degreesSize, cudaMemcpyDeviceToHost));
 
-    // Free device memory.
     CUDA_CALL(cudaFree(d_edges));
     CUDA_CALL(cudaFree(d_degrees));
 }
 
 @* Main Function.
-Simulates integration by constructing a sample hvm_graph and running the GPU graph pipeline.
+Demonstrates integration by creating a sample hvm_graph, printing its details,
+running the GPU graph pipeline, and profiling its execution.
 @c
 int main(void) {
-    // Define a sample graph: 5 vertices, 6 edges.
+    // Sample graph: 5 vertices, 6 edges.
     int sample_edges[] = {
         0, 1,  // Edge from vertex 0 to vertex 1.
         0, 2,  // Edge from vertex 0 to vertex 2.
@@ -106,22 +198,44 @@ int main(void) {
         3, 4   // Edge from vertex 3 to vertex 4.
     };
 
-    hvm_graph sample_graph;
-    sample_graph.numVertices = 5;
-    sample_graph.numEdges = 6;
-    sample_graph.edges = sample_edges;
+    // Create the graph using the dynamic allocation function.
+    hvm_graph *sample_graph = create_hvm_graph(5, 6, sample_edges);
+    print_hvm_graph(sample_graph);
 
     // Allocate memory for vertex degrees.
-    int vertex_degrees[5] = {0};
+    int *vertex_degrees = (int *)malloc(sample_graph->numVertices * sizeof(int));
+    if (!vertex_degrees) {
+        fprintf(stderr, "Error allocating vertex degrees array.\n");
+        free_hvm_graph(sample_graph);
+        exit(EXIT_FAILURE);
+    }
 
-    // Run the GPU graph pipeline on the sample graph.
-    run_gaia_graph_pipeline(&sample_graph, vertex_degrees);
+    // Run the GPU graph pipeline.
+    run_gaia_graph_pipeline(sample_graph, vertex_degrees);
 
-    // Print the resulting vertex degrees.
-    printf("Vertex degrees:\n");
-    for (int i = 0; i < sample_graph.numVertices; i++) {
+    // Print the computed vertex degrees.
+    printf("Vertex degrees (without profiling):\n");
+    for (int i = 0; i < sample_graph->numVertices; i++) {
         printf("Vertex %d: %d\n", i, vertex_degrees[i]);
     }
+
+    // Profile the GPU graph pipeline.
+    // Reset the vertex_degrees array for profiling.
+    for (int i = 0; i < sample_graph->numVertices; i++) {
+        vertex_degrees[i] = 0;
+    }
+    float elapsedTime = profile_gaia_graph_pipeline(sample_graph, vertex_degrees);
+    printf("GPU graph pipeline execution time: %.3f ms\n", elapsedTime);
+
+    // Print the vertex degrees after profiling.
+    printf("Vertex degrees (after profiling):\n");
+    for (int i = 0; i < sample_graph->numVertices; i++) {
+        printf("Vertex %d: %d\n", i, vertex_degrees[i]);
+    }
+
+    // Cleanup.
+    free(vertex_degrees);
+    free_hvm_graph(sample_graph);
 
     return 0;
 }
