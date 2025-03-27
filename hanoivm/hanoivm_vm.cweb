@@ -11,6 +11,7 @@ This file defines the main execution loop for HanoiVM:
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+
 #include "config.h"
 #include "t81_stack.h"
 #include "hvm_loader.h"
@@ -23,6 +24,10 @@ This file defines the main execution loop for HanoiVM:
 #include "hvm_promotion.h"
 #include "logging.h"       // New: Logging & telemetry integration header
 #include "telemetry.h"     // New: Telemetry and performance metrics
+
+#include "libt81.h"        // Base-81 arithmetic types (T81Number, etc.)
+#include "libt243.h"       // markov matrix, symbolic circuit logic
+#include "libt729.h"       // MindMap, entropy-aware symbolic AI types
 @#
 
 @<Extern τ-registers@>=
