@@ -6,7 +6,7 @@
 |--------------------------|---------------------------------------------------------|------------------------|------------|
 | **T81Lang**              | Grammar, compiler backend, REPL                         | ✅ Documented          | **90%**    |
 | **T81VM**                | Recursive ternary VM for `.t81` / `.hvm`                | ✅ Symbolic Complete   | **85%**    |
-| **T81 Data Types**       | BigInt, Float, Fraction, Graph, Tensor                  | ✅ Extended + Ops      | **95–100%**|
+| **T81 Data Types**       | BigInt, Float, Fraction, Graph, Tensor, Opcode, Matrix | ✅ Extended + Ops      | **100%**   |
 | **T81 Compiler**         | Lexer → AST → Semantic → IR → HVM pipeline              | ✅ Working End-to-End  | **95%**    |
 | **IR Generation**        | AST-to-IR with symbolic ops                             | ✅ Complete            | **100%**   |
 | **HVM Emitter**          | IR-to-`.hvm` bytecode generation                        | ✅ Functional          | **100%**   |
@@ -49,7 +49,7 @@
 | 🔤 T81Lang Spec     | Symbolic ternary language syntax             | ✅ Stable     | REPL, optimized stdlib                    |
 | 📦 `.cweb` Format   | Literate AI-optimized source packaging       | ✅ Supported  | Axion logging, automatic splitting        |
 | 🧠 Pattern Engine   | Symbolic AI dispatch                         | ✅ GAIA-Ready | Entropy-based integration                 |
-| 💾 Data Types       | Extensive ternary type library               | ✅ Full       | Advanced types added                      |
+| 💾 Data Types       | Extensive ternary type library               | ✅ Full       | T81BigInt, Float, Fraction, Matrix, Tensor, Graph, Opcode |
 | 🔁 Recursion Lib    | Canonical ternary recursive primitives       | ✅ Shipped    | Integrated and tested                     |
 | 🔮 T243/T729 Layers | FSM, AI intent, FFT, holomorphic tensors     | ✅ Modular    | New scaffolding completed                 |
 
@@ -145,10 +145,10 @@
 
 ## 🔗 Related Ecosystem Projects
 
-- [Alexis Linux](https://github.com/copyl-sys) — AI-native modular OS
-- [T81Lang](https://github.com/copyl-sys) — Symbolic ternary programming language
-- [Axion AI](https://github.com/copyl-sys) — Kernel-level optimization AI
-- **Project Looking Glass** — 3D symbolic recursion and state visualizer
+- [Alexis Linux](https://github.com/copyl-sys) — AI-native modular OS  
+- [T81Lang](https://github.com/copyl-sys) — Symbolic ternary programming language  
+- [Axion AI](https://github.com/copyl-sys) — Kernel-level optimization AI  
+- **Project Looking Glass** — 3D symbolic recursion and state visualizer  
 
 ---
 
@@ -164,7 +164,7 @@
 - ✅ GPU acceleration active (CUDA/ROCm) with symbolic FFT  
 - ✅ Advanced developer tools and recursion visualization complete  
 - ✅ Portable FFI support for external language embedding (`libhanoivm_ffi.so`)  
-- ✅ GPU Graph Pipeline integration (gaia_graph_pipeline.cweb) with conversion functions  
-- ✅ Symbolic AI Graph IR integration (T729LogicGraph) with full integration hooks  
-- ✅ Enhanced VM Execution Core (hanoivm_vm.cweb) with logging/telemetry & integration hooks  
-- 🔜 Immediate Next Focus: Project Looking Glass enhancements, LLVM IR optimization pipeline
+- ✅ GPU Graph Pipeline integration (gaia_graph_pipeline.cweb)  
+- ✅ Symbolic AI Graph IR integration (T729LogicGraph)  
+- ✅ Enhanced VM Execution Core (`hanoivm_vm.cweb`) with full introspection  
+- 🔜 Immediate Next Focus: Project Looking Glass, LLVM entropy optimizations
