@@ -151,6 +151,7 @@ t81lang_compiler.cweb        | Complete compiler frontend and pipeline
 t81lang_irgen.cweb           | IR generation from AST for T81Lang
 t81lang_lexer.cweb           | Lexer for parsing T81Lang syntax
 t81lang_parser.cweb          | Parser for generating AST structures
+t729logic_graph.cweb         | Symbolic IR that captures AI logic and Ternary Computation flows
 tisc_backend.cweb            | Compiler backend IR emitter for `.tisc` to `.hvm`
 tisc_compiler.cweb           | Frontend compiler logic for `.tisc` language
 tisc_ir.cweb                 | TISC intermediate representation structures
