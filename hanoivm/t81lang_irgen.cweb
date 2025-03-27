@@ -1,27 +1,27 @@
-@* T81Lang IR Generator (t81lang_irgen.cweb) *@
+@* t81lang_irgen.cweb | T81Lang IR Generator — Symbolic and Recursive IR *@
 
+@<Includes and Definitions@>
+@<IR Data Structures@>
+@<AST Integration@>
+@<IR Emission Helpers@>
+@<IR Generation Logic@>
+@<Testing Utilities@>
+@#
+
+@<Includes and Definitions@>=
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define MAX_TEMP_LEN 64
+@#
 
-@d IR Instruction Type
+@<IR Data Structures@>=
 typedef enum {
-    IR_NOP,
-    IR_LOAD,
-    IR_STORE,
-    IR_ADD,
-    IR_SUB,
-    IR_MUL,
-    IR_DIV,
-    IR_RETURN,
-    IR_LABEL,
-    IR_JUMP,
-    IR_JUMP_IF
+    IR_NOP, IR_LOAD, IR_STORE, IR_ADD, IR_SUB, IR_MUL, IR_DIV,
+    IR_RETURN, IR_LABEL, IR_JUMP, IR_JUMP_IF
 } IRType;
 
-@d IR Instruction Structure
 typedef struct IR {
     IRType type;
     char arg1[MAX_TEMP_LEN];
@@ -30,59 +30,20 @@ typedef struct IR {
     struct IR* next;
 } IR;
 
-@d IR List State
-IR* ir_head = NULL;
-IR* ir_tail = NULL;
-int temp_index = 0;
-int label_index = 0;
+static IR* ir_head = NULL;
+static IR* ir_tail = NULL;
+static int temp_index = 0;
+static int label_index = 0;
+@#
 
-@d Append IR Instruction
-void emit(IRType type, const char* arg1, const char* arg2, const char* result) {
-    IR* instr = malloc(sizeof(IR));
-    instr->type = type;
-    strncpy(instr->arg1, arg1 ? arg1 : "", MAX_TEMP_LEN);
-    strncpy(instr->arg2, arg2 ? arg2 : "", MAX_TEMP_LEN);
-    strncpy(instr->result, result ? result : "", MAX_TEMP_LEN);
-    instr->next = NULL;
-    if (ir_tail) ir_tail->next = instr;
-    else ir_head = instr;
-    ir_tail = instr;
-}
-
-@d Temporary Register Helper
-void temp(char* out) {
-    sprintf(out, "t%d", temp_index++);
-}
-
-@d Label Generator Helper
-void new_label(char* out) {
-    sprintf(out, "L%d", label_index++);
-}
-
-@d Forward Declare IR Generator
-char* generate_expression(struct ASTNode* node);
-void generate_statement(struct ASTNode* stmt);
-
-@d ASTNodeType Reference (reused)
+@<AST Integration@>=
 typedef enum {
-    AST_PROGRAM,
-    AST_FUNCTION,
-    AST_STATEMENT,
-    AST_RETURN,
-    AST_ASSIGNMENT,
-    AST_IDENTIFIER,
-    AST_LITERAL,
-    AST_BINARY_EXPR,
-    AST_CALL,
-    AST_TYPE,
-    AST_PARAM,
-    AST_TYPE_ANNOTATION,
-    AST_IF,
-    AST_WHILE,
-    AST_ELSE
+    AST_PROGRAM, AST_FUNCTION, AST_STATEMENT, AST_RETURN,
+    AST_ASSIGNMENT, AST_IDENTIFIER, AST_LITERAL, AST_BINARY_EXPR,
+    AST_CALL, AST_TYPE, AST_PARAM, AST_TYPE_ANNOTATION,
+    AST_IF, AST_WHILE, AST_ELSE
 } ASTNodeType;
 
-@d ASTNode Reference (reused)
 typedef struct ASTNode {
     ASTNodeType type;
     char name[MAX_TEMP_LEN];
@@ -91,8 +52,31 @@ typedef struct ASTNode {
     struct ASTNode* body;
     struct ASTNode* next;
 } ASTNode;
+@#
 
-@d Generate IR for Expression
+@<IR Emission Helpers@>=
+void emit(IRType type, const char* arg1, const char* arg2, const char* result) {
+    IR* instr = malloc(sizeof(IR));
+    strncpy(instr->arg1, arg1 ? arg1 : "", MAX_TEMP_LEN);
+    strncpy(instr->arg2, arg2 ? arg2 : "", MAX_TEMP_LEN);
+    strncpy(instr->result, result ? result : "", MAX_TEMP_LEN);
+    instr->type = type;
+    instr->next = NULL;
+    if (ir_tail) ir_tail->next = instr;
+    else ir_head = instr;
+    ir_tail = instr;
+}
+
+void temp(char* out) {
+    sprintf(out, "t%d", temp_index++);
+}
+
+void new_label(char* out) {
+    sprintf(out, "L%d", label_index++);
+}
+@#
+
+@<IR Generation Logic@>=
 char* generate_expression(ASTNode* node) {
     if (!node) return NULL;
     static char result[MAX_TEMP_LEN];
@@ -102,13 +86,16 @@ char* generate_expression(ASTNode* node) {
             temp(result);
             emit(IR_LOAD, node->name, NULL, result);
             return result;
+
         case AST_IDENTIFIER:
             strncpy(result, node->name, MAX_TEMP_LEN);
             return result;
+
         case AST_BINARY_EXPR: {
-            char *left = generate_expression(node->left);
-            char *right = generate_expression(node->right);
+            char* left = generate_expression(node->left);
+            char* right = generate_expression(node->right);
             temp(result);
+
             if (strcmp(node->name, "+") == 0)
                 emit(IR_ADD, left, right, result);
             else if (strcmp(node->name, "-") == 0)
@@ -117,14 +104,14 @@ char* generate_expression(ASTNode* node) {
                 emit(IR_MUL, left, right, result);
             else if (strcmp(node->name, "/") == 0)
                 emit(IR_DIV, left, right, result);
+
             return result;
         }
-        default:
-            return NULL;
+
+        default: return NULL;
     }
 }
 
-@d Generate IR for Statement
 void generate_statement(ASTNode* stmt) {
     if (!stmt) return;
 
@@ -134,105 +121,94 @@ void generate_statement(ASTNode* stmt) {
             emit(IR_STORE, value, NULL, stmt->left->name);
             break;
         }
+
         case AST_RETURN: {
             char* retval = generate_expression(stmt->left);
             emit(IR_RETURN, retval, NULL, NULL);
             break;
         }
+
         case AST_IF: {
             char cond[MAX_TEMP_LEN], label_else[MAX_TEMP_LEN], label_end[MAX_TEMP_LEN];
             strcpy(cond, generate_expression(stmt->left));
             new_label(label_else);
             new_label(label_end);
             emit(IR_JUMP_IF, cond, NULL, label_else);
-            ASTNode* body = stmt->right;
-            while (body) {
+
+            for (ASTNode* body = stmt->right; body; body = body->next)
                 generate_statement(body);
-                body = body->next;
-            }
+
             emit(IR_JUMP, NULL, NULL, label_end);
             emit(IR_LABEL, NULL, NULL, label_else);
+
             if (stmt->next && stmt->next->type == AST_ELSE) {
-                ASTNode* else_body = stmt->next->body;
-                while (else_body) {
+                for (ASTNode* else_body = stmt->next->body; else_body; else_body = else_body->next)
                     generate_statement(else_body);
-                    else_body = else_body->next;
-                }
             }
+
             emit(IR_LABEL, NULL, NULL, label_end);
             break;
         }
+
         case AST_WHILE: {
-            char label_start[MAX_TEMP_LEN], label_cond[MAX_TEMP_LEN];
+            char label_cond[MAX_TEMP_LEN], label_body[MAX_TEMP_LEN];
             new_label(label_cond);
-            new_label(label_start);
+            new_label(label_body);
+
             emit(IR_LABEL, NULL, NULL, label_cond);
             char* cond = generate_expression(stmt->left);
-            emit(IR_JUMP_IF, cond, NULL, label_start);
-            emit(IR_LABEL, NULL, NULL, label_start);
-            ASTNode* loop = stmt->right;
-            while (loop) {
+            emit(IR_JUMP_IF, cond, NULL, label_body);
+
+            emit(IR_LABEL, NULL, NULL, label_body);
+            for (ASTNode* loop = stmt->right; loop; loop = loop->next)
                 generate_statement(loop);
-                loop = loop->next;
-            }
             emit(IR_JUMP, NULL, NULL, label_cond);
             break;
         }
+
         default:
             generate_expression(stmt);
             break;
     }
 }
 
-@d Generate IR for Function
 void generate_function(ASTNode* fn) {
     printf("Generating IR for function: %s\n", fn->name);
-    ASTNode* body = fn->body;
-    while (body) {
+    for (ASTNode* body = fn->body; body; body = body->next)
         generate_statement(body);
-        body = body->next;
-    }
 }
 
-@d Generate IR for Program
 void generate_program(ASTNode* root) {
-    ASTNode* fn = root->body;
-    while (fn) {
-        if (fn->type == AST_FUNCTION) {
+    for (ASTNode* fn = root->body; fn; fn = fn->next)
+        if (fn->type == AST_FUNCTION)
             generate_function(fn);
-        }
-        fn = fn->next;
-    }
 }
+@#
 
-@d Print IR Instructions
+@<Testing Utilities@>=
 void print_ir() {
-    IR* curr = ir_head;
-    while (curr) {
+    for (IR* curr = ir_head; curr; curr = curr->next)
         printf("%d %s %s -> %s\n", curr->type, curr->arg1, curr->arg2, curr->result);
-        curr = curr->next;
-    }
 }
 
-@d Export IR to File
 void export_ir(const char* filename) {
     FILE* f = fopen(filename, "w");
     if (!f) return;
-    IR* curr = ir_head;
-    while (curr) {
+    for (IR* curr = ir_head; curr; curr = curr->next)
         fprintf(f, "%d %s %s -> %s\n", curr->type, curr->arg1, curr->arg2, curr->result);
-        curr = curr->next;
-    }
     fclose(f);
 }
 
-@d IR Unit Test Example
 void ir_test_sample() {
     extern ASTNode* parse_program();
     extern void set_source(const char*);
     extern void advance_token();
 
-    const char* code = "fn main(x: T81BigInt) -> T81BigInt { let y: T81Float = 3.0t81; if y > 0t81 { return y; } else { return 0t81; } }";
+    const char* code =
+        "fn main(x: T81BigInt) -> T81BigInt { "
+        "let y: T81Float = 3.0t81; "
+        "if y > 0t81 { return y; } else { return 0t81; } }";
+
     set_source(code);
     advance_token();
     ASTNode* root = parse_program();
@@ -240,3 +216,4 @@ void ir_test_sample() {
     print_ir();
     export_ir("out.ir");
 }
+@#
