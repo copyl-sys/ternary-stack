@@ -97,6 +97,18 @@ def parse_return_statement(tokens):
 
 def parse_function(tokens):
     fn_name = tokens[1][1]
+    param_tokens = tokens[2:tokens.index(('RPAREN', ')'))]
+    params = []
+    i = 1
+    while i < len(param_tokens):
+        if param_tokens[i][0] == "IDENT" and param_tokens[i+1][0] == "COLON":
+            param_name = param_tokens[i][1]
+            param_type = param_tokens[i+2][1]
+            params.append({"name": param_name, "type": param_type})
+            i += 3
+        else:
+            i += 1
+
     return_type = tokens[tokens.index(('ARROW', '->')) + 1][1]
     body_tokens = tokens[tokens.index(('LBRACE', '{')) + 1 : tokens.index(('RBRACE', '}'))]
 
@@ -115,10 +127,32 @@ def parse_function(tokens):
         else:
             i += 1
 
-    return ASTNode("Function", name=fn_name, returns=return_type, body=statements)
+    return ASTNode("Function", name=fn_name, params=params, returns=return_type, body=statements)
+
+def parse_program(tokens):
+    functions = []
+    i = 0
+    while i < len(tokens):
+        if tokens[i][1] == "fn":
+            start = i
+            depth = 0
+            while i < len(tokens):
+                if tokens[i][0] == "LBRACE":
+                    depth += 1
+                elif tokens[i][0] == "RBRACE":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                i += 1
+            fn_tokens = tokens[start:i+1]
+            functions.append(parse_function(fn_tokens))
+        i += 1
+    return ASTNode("Program", functions=[fn.to_dict() for fn in functions])
 
 # --- TISC Codegen ---
 def emit_tisc(ast_node):
+    if ast_node.node_type == "Program":
+        return '\n\n'.join(emit_tisc(ASTNode("Function", **fn)) for fn in ast_node.fields['functions'])
     meta = ""
     if ast_node.node_type == "Let":
         code = emit_tisc(ast_node.fields['expr'])
@@ -181,7 +215,7 @@ def main():
 
     module_name = os.path.splitext(os.path.basename(args.input))[0]
     tokens = tokenize(source)
-    ast = parse_function(tokens)
+    ast = parse_program(tokens)
 
     # Write AST JSON
     with open(f"{args.out}/{module_name}.ast.json", 'w') as f:
