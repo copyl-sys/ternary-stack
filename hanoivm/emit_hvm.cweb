@@ -1,10 +1,13 @@
-@* T81Lang HVM Emitter (emit_hvm.cweb) *@
+@* T81Lang HVM Emitter — emit_hvm.cweb
+This module reads IR lines and outputs `.hvm` symbolic or raw encodings.
+It currently emits textual `.hvm` but is structured to allow binary output later.
+@c
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-@d IRType Codes
+@<Opcode Enum Mapping@>
 #define IR_NOP      0
 #define IR_LOAD     1
 #define IR_STORE    2
@@ -16,69 +19,83 @@
 #define IR_LABEL    8
 #define IR_JUMP     9
 #define IR_JUMP_IF 10
+@#
 
-@d Emit HVM Binary Format
+@<Parsed IR Line Struct@>=
+typedef struct {
+    int opcode;
+    char arg1[64];
+    char arg2[64];
+    char result[64];
+} ParsedIR;
+@#
+
+@<IR Line Parser@>=
+int parse_ir_line(const char* line, ParsedIR* out) {
+    if (!line || !out) return 0;
+    memset(out, 0, sizeof(ParsedIR));
+    return sscanf(line, "%d %63s %63s -> %63s", &out->opcode, out->arg1, out->arg2, out->result);
+}
+@#
+
+@<Emit HVM Instruction Textual@>=
+void emit_hvm_instruction(FILE* out, ParsedIR* ir) {
+    switch (ir->opcode) {
+        case IR_LOAD:
+            fprintf(out, "LOAD %s -> %s\n", ir->arg1, ir->result); break;
+        case IR_STORE:
+            fprintf(out, "STORE %s -> %s\n", ir->arg1, ir->result); break;
+        case IR_ADD:
+            fprintf(out, "ADD %s %s -> %s\n", ir->arg1, ir->arg2, ir->result); break;
+        case IR_SUB:
+            fprintf(out, "SUB %s %s -> %s\n", ir->arg1, ir->arg2, ir->result); break;
+        case IR_MUL:
+            fprintf(out, "MUL %s %s -> %s\n", ir->arg1, ir->arg2, ir->result); break;
+        case IR_DIV:
+            fprintf(out, "DIV %s %s -> %s\n", ir->arg1, ir->arg2, ir->result); break;
+        case IR_RETURN:
+            fprintf(out, "RETURN %s\n", ir->arg1); break;
+        case IR_LABEL:
+            fprintf(out, "LABEL %s:\n", ir->result); break;
+        case IR_JUMP:
+            fprintf(out, "JUMP %s\n", ir->result); break;
+        case IR_JUMP_IF:
+            fprintf(out, "JUMP_IF %s -> %s\n", ir->arg1, ir->result); break;
+        default:
+            fprintf(out, "; UNKNOWN OPCODE %d\n", ir->opcode); break;
+    }
+}
+@#
+
+@<Emit HVM From IR File@>=
 void emit_hvm(const char* ir_file, const char* out_file) {
     FILE* in = fopen(ir_file, "r");
     FILE* out = fopen(out_file, "w");
     if (!in || !out) {
-        fprintf(stderr, "[Error] Could not open IR or HVM output file.\n");
+        fprintf(stderr, "[emit_hvm] Failed to open `%s` or `%s`\n", ir_file, out_file);
         return;
     }
 
     char line[256];
+    ParsedIR ir;
+
     while (fgets(line, sizeof(line), in)) {
-        int opcode;
-        char arg1[64] = {0}, arg2[64] = {0}, result[64] = {0};
-        if (sscanf(line, "%d %63s %63s -> %63s", &opcode, arg1, arg2, result) >= 1) {
-            switch (opcode) {
-                case IR_LOAD:
-                    fprintf(out, "LOAD %s -> %s\n", arg1, result);
-                    break;
-                case IR_STORE:
-                    fprintf(out, "STORE %s -> %s\n", arg1, result);
-                    break;
-                case IR_ADD:
-                    fprintf(out, "ADD %s %s -> %s\n", arg1, arg2, result);
-                    break;
-                case IR_SUB:
-                    fprintf(out, "SUB %s %s -> %s\n", arg1, arg2, result);
-                    break;
-                case IR_MUL:
-                    fprintf(out, "MUL %s %s -> %s\n", arg1, arg2, result);
-                    break;
-                case IR_DIV:
-                    fprintf(out, "DIV %s %s -> %s\n", arg1, arg2, result);
-                    break;
-                case IR_RETURN:
-                    fprintf(out, "RETURN %s\n", arg1);
-                    break;
-                case IR_LABEL:
-                    fprintf(out, "LABEL %s:\n", result);
-                    break;
-                case IR_JUMP:
-                    fprintf(out, "JUMP %s\n", result);
-                    break;
-                case IR_JUMP_IF:
-                    fprintf(out, "JUMP_IF %s -> %s\n", arg1, result);
-                    break;
-                default:
-                    fprintf(out, "; UNKNOWN OPCODE %d\n", opcode);
-                    break;
-            }
+        if (parse_ir_line(line, &ir) >= 1) {
+            emit_hvm_instruction(out, &ir);
         }
     }
 
     fclose(in);
     fclose(out);
-
-    printf("[emit_hvm] HVM output written to %s\n", out_file);
+    printf("[emit_hvm] Output written to %s\n", out_file);
 }
+@#
 
-@d Unit Test Entry (Optional)
+@<Unit Test Harness@>=
 #ifdef TEST_HVM_EMIT
 int main() {
     emit_hvm("output.ir", "test.hvm");
     return 0;
 }
 #endif
+@#
