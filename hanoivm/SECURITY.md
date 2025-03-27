@@ -63,7 +63,7 @@ This document defines the **security model, design assumptions, and threat mitig
 
 If you discover a security vulnerability:
 
-- Please email: **security@copyleft.systems**
+- Please email: **admin@copyleft.systems**
 - Provide reproducible proof-of-concept if possible.
 - All disclosures will be triaged within 72 hours.
 
