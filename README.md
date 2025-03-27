@@ -70,7 +70,7 @@ Welcome to the master repository for the **Copyleft Ternary Stack**, an experime
 
 ---
 
-© Copyleft Systems — `./night_shift.sh -sync -copyleftsystems`
+© Copyleft Systems — `./night_shift.sh -sync`
 
 ---
 
