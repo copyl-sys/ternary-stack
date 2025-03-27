@@ -1,0 +1,139 @@
+package riftcat;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.util.List;
+import java.util.Map;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+import org.jfree.data.time.Second;
+import org.jfree.data.time.TimeSeries;
+import org.jfree.data.time.TimeSeriesCollection;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import org.pcap4j.core.*;
+import org.pcap4j.packet.*;
+import java.io.OutputStream;
+import java.net.Socket;
+import org.apache.commons.math3.transform.*;
+import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
+import org.deeplearning4j.nn.conf.layers.DenseLayer;
+import org.deeplearning4j.nn.conf.layers.OutputLayer;
+import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.nn.weights.WeightInit;
+import org.nd4j.linalg.activations.Activation;
+import org.nd4j.linalg.lossfunctions.LossFunctions;
+
+public class RiftCat {
+    private JFrame frame;
+    private JTable osiLayerTable;
+    private DefaultTableModel osiTableModel;
+    private TimeSeries tcpSeries;
+    private TimeSeries udpSeries;
+    private TimeSeriesCollection dataset;
+    private MultiLayerNetwork aiModel;
+
+    public RiftCat() {
+        frame = new JFrame("RiftCat - Advanced TCP/IP Oscilloscope & Security Analyzer");
+        frame.setLayout(new BorderLayout());
+        frame.setSize(1000, 750);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        
+        // OSI Layer Panel
+        osiTableModel = new DefaultTableModel(new String[]{"Time", "Source", "Destination", "Protocol", "Layer", "Threat"}, 0);
+        osiLayerTable = new JTable(osiTableModel);
+        JScrollPane osiScrollPane = new JScrollPane(osiLayerTable);
+        
+        // Timeline Chart
+        dataset = new TimeSeriesCollection();
+        tcpSeries = new TimeSeries("TCP Traffic");
+        udpSeries = new TimeSeries("UDP Traffic");
+        dataset.addSeries(tcpSeries);
+        dataset.addSeries(udpSeries);
+        JFreeChart chart = ChartFactory.createTimeSeriesChart("Network Traffic Timeline", "Time", "Packet Count", dataset);
+        ChartPanel chartPanel = new ChartPanel(chart);
+        
+        // Adding components
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, osiScrollPane, chartPanel);
+        splitPane.setResizeWeight(0.5);
+        frame.add(splitPane, BorderLayout.CENTER);
+        
+        frame.setVisible(true);
+        
+        // Initialize AI Model
+        initAIModel();
+        
+        // Start live packet capture
+        startLiveCapture();
+    }
+    
+    private void initAIModel() {
+        aiModel = new MultiLayerNetwork(new NeuralNetConfiguration.Builder()
+            .seed(42)
+            .list()
+            .layer(0, new DenseLayer.Builder().nIn(10).nOut(20).activation(Activation.RELU).weightInit(WeightInit.XAVIER).build())
+            .layer(1, new OutputLayer.Builder().nIn(20).nOut(1).activation(Activation.SIGMOID).lossFunction(LossFunctions.LossFunction.XENT).build())
+            .build());
+        aiModel.init();
+    }
+    
+    public void addPacket(String timestamp, String src, String dest, String protocol, String layer) {
+        boolean threatDetected = aiModel.output(new org.nd4j.linalg.api.ndarray.INDArray[]{null}) != null; // Dummy threat detection placeholder
+        String threat = threatDetected ? "Potential Threat" : "Normal";
+        osiTableModel.addRow(new Object[]{timestamp, src, dest, protocol, layer, threat});
+        Second time = new Second(new java.util.Date(Long.parseLong(timestamp) * 1000));
+        if (protocol.equals("TCP")) {
+            tcpSeries.addOrUpdate(time, tcpSeries.getValue(time) == null ? 1 : tcpSeries.getValue(time).intValue() + 1);
+        } else if (protocol.equals("UDP")) {
+            udpSeries.addOrUpdate(time, udpSeries.getValue(time) == null ? 1 : udpSeries.getValue(time).intValue() + 1);
+        }
+    }
+    
+    public static void generateReport(List<Map<String, String>> packets) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.writeValue(new File("riftcat_report.json"), packets);
+        System.out.println("JSON Report Generated!");
+    }
+    
+    private void startLiveCapture() {
+        try {
+            PcapNetworkInterface device = Pcaps.findAllDevs().get(0); // Select the first network device
+            PcapHandle handle = device.openLive(65536, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, 10);
+            handle.loop(-1, new PacketListener() {
+                @Override
+                public void gotPacket(Packet packet) {
+                    EthernetPacket ethPacket = packet.get(EthernetPacket.class);
+                    if (ethPacket != null) {
+                        String src = ethPacket.getHeader().getSrcAddr().toString();
+                        String dest = ethPacket.getHeader().getDstAddr().toString();
+                        String protocol = ethPacket.getHeader().getType().name();
+                        addPacket(String.valueOf(System.currentTimeMillis() / 1000), src, dest, protocol, "Ethernet");
+                    }
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public void injectPacket(String targetIP, int targetPort, String payload) {
+        try (Socket socket = new Socket(targetIP, targetPort); OutputStream out = socket.getOutputStream()) {
+            out.write(payload.getBytes());
+            System.out.println("Packet Injected: " + payload);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public void analyzeNetworkFrequencies(double[] packetRates) {
+        FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
+        Complex[] frequencyData = fft.transform(packetRates, TransformType.FORWARD);
+        System.out.println("Frequency Analysis Completed!");
+    }
+    
+    public static void main(String[] args) {
+        new RiftCat();
+    }
+}

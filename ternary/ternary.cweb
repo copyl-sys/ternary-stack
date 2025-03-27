@@ -1,0 +1,192 @@
+/*=====================================================================
+  Ternary Calculator: A Minimalist Ternary Arithmetic Evaluator in C
+  Version: 1.0-C
+  Author: Grok (inspired by Copyleft Systems)
+  Date: Mar 3 2025
+
+  This literate program implements a simple C-based tool, `ternary`, that evaluates
+  ternary arithmetic expressions (base-3 digits: 0, 1, 2) from standard input and
+  outputs the result in ternary format to standard output. Following Linux's
+  tradition of "doing one thing well," it focuses solely on expression evaluation,
+  supporting addition, subtraction, multiplication, division, and parentheses.
+  Designed for pipeline use (e.g., `echo "12+21" | ternary`), it reads one line from
+  stdin, processes it, and writes the result or an error message, ensuring
+  portability and simplicity. Errors are reported to stderr with a non-zero exit
+  code, making it script-friendly.
+=====================================================================*/
+
+/*=====================================================================
+  Ternary Calculator Implementation: ternary.c
+  This file contains the complete C implementation of the `ternary` tool. It
+  includes a recursive descent parser for ternary expressions, conversion to
+  ternary output, and minimal I/O handling, all tailored for Unix-style usage.
+=====================================================================*/
+@* Ternary Calculator Implementation: ternary.c
+@o ternary.c
+@c
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+
+/* Global pointer to traverse the input expression string during parsing. */
+static const char *expr_ptr;
+
+/* Prints an error message to stderr and exits with failure status. */
+static void error(const char *msg) {
+    fprintf(stderr, "error: %s\n", msg);
+    exit(1);
+}
+
+/* Forward declarations for parsing functions. */
+static int parse_expr(void);
+static int parse_term(void);
+static int parse_factor(void);
+static int parse_number(void);
+
+/* Evaluates a ternary arithmetic expression, returning the integer result. */
+int evaluate_ternary(const char *expr) {
+    expr_ptr = expr; // Set global pointer to start of input.
+    while (isspace((unsigned char)*expr_ptr)) expr_ptr++; // Skip leading whitespace.
+    if (!*expr_ptr) error("empty input");
+    int result = parse_expr(); // Parse the full expression.
+    /* Check for trailing non-whitespace characters. */
+    while (*expr_ptr) {
+        if (!isspace((unsigned char)*expr_ptr)) {
+            char msg[32];
+            snprintf(msg, sizeof(msg), "unexpected character '%c'", *expr_ptr);
+            error(msg);
+        }
+        expr_ptr++;
+    }
+    return result;
+}
+
+/* Parses an expression with addition and subtraction operators. */
+static int parse_expr(void) {
+    int value = parse_term(); // Start with a term (handles * and /).
+    while (*expr_ptr) {
+        while (isspace((unsigned char)*expr_ptr)) expr_ptr++; // Skip whitespace.
+        if (*expr_ptr == '+') {
+            expr_ptr++; // Consume '+'.
+            value += parse_term();
+        } else if (*expr_ptr == '-') {
+            expr_ptr++; // Consume '-'.
+            value -= parse_term();
+        } else {
+            break; // No more operators at this level.
+        }
+    }
+    return value;
+}
+
+/* Parses a term with multiplication and division operators. */
+static int parse_term(void) {
+    int value = parse_factor(); // Start with a factor (number or parens).
+    while (*expr_ptr) {
+        while (isspace((unsigned char)*expr_ptr)) expr_ptr++; // Skip whitespace.
+        if (*expr_ptr == '*') {
+            expr_ptr++; // Consume '*'.
+            value *= parse_factor();
+        } else if (*expr_ptr == '/') {
+            expr_ptr++; // Consume '/'.
+            int next = parse_factor();
+            if (next == 0) error("division by zero");
+            value /= next;
+        } else {
+            break; // No more operators at this level.
+        }
+    }
+    return value;
+}
+
+/* Parses a factor: either a number or a parenthesized expression. */
+static int parse_factor(void) {
+    while (isspace((unsigned char)*expr_ptr)) expr_ptr++; // Skip whitespace.
+    if (!*expr_ptr) error("unexpected end of input");
+    if (*expr_ptr == '(') {
+        expr_ptr++; // Consume '('.
+        int value = parse_expr(); // Recursively parse inside parentheses.
+        while (isspace((unsigned char)*expr_ptr)) expr_ptr++; // Skip whitespace.
+        if (*expr_ptr != ')') error("missing closing parenthesis");
+        expr_ptr++; // Consume ')'.
+        return value;
+    }
+    return parse_number(); // Parse a standalone number.
+}
+
+/* Parses a sequence of ternary digits (0, 1, 2) into an integer value. */
+static int parse_number(void) {
+    int value = 0;
+    int has_digits = 0;
+    while (*expr_ptr) {
+        if (*expr_ptr >= '0' && *expr_ptr <= '2') {
+            value = value * 3 + (*expr_ptr - '0'); // Accumulate in base-3.
+            has_digits = 1;
+            expr_ptr++;
+        } else {
+            break; // Stop at non-digit.
+        }
+    }
+    if (!has_digits) {
+        char msg[32];
+        snprintf(msg, sizeof(msg), "invalid digit '%c'", *expr_ptr);
+        error(msg);
+    }
+    return value;
+}
+
+/* Converts an integer to its ternary string representation. */
+void int_to_ternary(int n, char *buffer, size_t buf_size) {
+    if (buf_size < 32) error("buffer too small"); // Ensure sufficient space.
+    char temp[32]; // Temporary buffer for building string (max 31 digits + null).
+    int i = 0;
+    if (n == 0) {
+        strcpy(buffer, "0");
+        return;
+    }
+    int negative = (n < 0);
+    if (negative) n = -n;
+    while (n > 0) {
+        temp[i++] = '0' + (n % 3); // Extract ternary digits.
+        n /= 3;
+    }
+    if (negative) temp[i++] = '-'; // Add negative sign if needed.
+    temp[i] = '\0';
+    /* Reverse the digits into the output buffer. */
+    int len = strlen(temp);
+    for (int j = 0; j < len; j++) {
+        buffer[j] = temp[len - j - 1];
+    }
+    buffer[len] = '\0';
+}
+
+/* Main function: reads one line from stdin, evaluates it, and outputs the result. */
+int main(void) {
+    char input[1024]; // Buffer for input line (arbitrary but sufficient for typical use).
+    if (!fgets(input, sizeof(input), stdin)) {
+        if (feof(stdin)) error("empty input");
+        fprintf(stderr, "error: failed to read input\n");
+        return 1;
+    }
+    /* Remove trailing newline if present. */
+    size_t len = strlen(input);
+    if (len > 0 && input[len - 1] == '\n') input[len - 1] = '\0';
+
+    int result = evaluate_ternary(input); // Evaluate the expression.
+    char output[32]; // Buffer for ternary output (max 31 digits + null).
+    int_to_ternary(result, output, sizeof(output)); // Convert result to ternary.
+
+    /* Write result to stdout with a newline. */
+    if (printf("%s\n", output) < 0) {
+        fprintf(stderr, "error: failed to write output\n");
+        return 1;
+    }
+    fflush(stdout); // Ensure output is flushed.
+    return 0;
+}
+@*/
+
+/*=====================================================================
+  End of Ternary Calculator CWEB Document
+=====================================================================*/

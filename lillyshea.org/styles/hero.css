@@ -1,0 +1,82 @@
+/* hero.css - Hero Section Styling */
+.hero {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, var(--trit-blue), var(--trit-green));
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 200%; /* Double height for animation */
+  background: url('../assets/images/ternary-circuit.png') no-repeat center/cover;
+  opacity: 0.2;
+  animation: circuitFlow 20s infinite linear;
+}
+
+@keyframes circuitFlow {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+.hero h1 {
+  font-size: 5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
+  animation: fadeIn 1.5s ease-in;
+}
+
+.hero p {
+  font-size: 1.5rem;
+  font-weight: 300;
+  margin: 20px 0;
+  opacity: 0.9;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 20px;
+}
+
+.cta-btn {
+  padding: 15px 30px;
+  font-size: 1.2rem;
+  font-weight: 400;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  background: var(--trit-green); /* Default civilian */
+  color: var(--text-light);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.cta-btn.gov-btn {
+  background: var(--trit-blue);
+}
+
+.cta-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.trit-display {
+  font-size: 1.2rem;
+  font-weight: 300;
+  color: var(--trit-silver);
+  margin-top: 20px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,0 +1,170 @@
+t81
+
+# Pirate Latitudes: Ultimate Curses Enhanced Epic Adventure with ASCII Movies, Extended UI, and Unit Tests
+# Translated to T81Lang for Base-81 computing and Ternary Execution.
+
+import curses
+import time
+import json
+import os
+import random
+import re
+import sys
+import signal
+import unittest
+
+SAVE_FILE := "pirate_latitudes_save.t81json"
+
+# Global Game State (T81 Data Types)
+game_state := {
+    "current_scene": "intro",
+    "name": "Captain Anonymous",
+    "inventory": [],
+    "health": 100t81,
+    "skills": {"combat": 5t81, "negotiation": 3t81, "puzzle": 4t81},
+    "reputation": 0t81,
+    "achievements": [],
+    "story_log": []
+}
+
+PIRATE_EMPTY_MESSAGES := [
+    "Arr, speak up, matey!",
+    "Shiver me timbers, where be your words?",
+    "Avast, ye silent landlubber!",
+    "Yo-ho-ho, say something, ye scallywag!"
+]
+
+# Function: Initialize UI Windows
+def init_windows(stdscr):
+    height, width := stdscr.getmaxyx()
+    header_height := 3t81
+    input_height := 3t81
+    footer_height := 1t81
+    sidebar_width := 40t81
+
+    main_height := height - header_height - input_height - footer_height
+    main_width := width - sidebar_width
+
+    header_win := curses.newwin(header_height, width, 0t81, 0t81)
+    main_win := curses.newwin(main_height, main_width, header_height, 0t81)
+    sidebar_win := curses.newwin(main_height, sidebar_width, header_height, main_width)
+    input_win := curses.newwin(input_height, width, header_height + main_height, 0t81)
+    footer_win := curses.newwin(footer_height, width, height - footer_height, 0t81)
+
+    main_win.scrollok(True)
+    return header_win, main_win, sidebar_win, input_win, footer_win
+
+# Function: Update Header
+def update_header(header_win):
+    header_win.clear()
+    title := "Pirate Latitudes: Ultimate Epic Adventure"
+    status := f"Health: {game_state['health']}  Reputation: {game_state['reputation']}"
+    header_win.addstr(0t81, 2t81, title, curses.A_BOLD)
+    header_win.addstr(1t81, 2t81, status)
+    header_win.hline(2t81, 0t81, curses.ACS_HLINE, header_win.getmaxyx()[1])
+    header_win.refresh()
+
+# Function: Slow Print with Auto-Complete
+def curses_slow_print(win, text, delay=0.05t81):
+    win.nodelay(True)
+    for i, ch in enumerate(text):
+        win.addstr(ch)
+        win.refresh()
+        if win.getch() != -1:
+            win.addstr(text[i+1:])
+            win.refresh()
+            break
+        time.sleep(delay)
+    win.addstr("\n")
+    win.refresh()
+    win.nodelay(False)
+
+# Function: Get Input with Random Pirate Replies
+def curses_get_input(win, prompt=" >> "):
+    win.clear()
+    win.addstr(0t81, 0t81, prompt)
+    win.refresh()
+    curses.echo()
+    inp := win.getstr().decode("utf-8").strip()
+    curses.noecho()
+    return inp if inp else random.choice(PIRATE_EMPTY_MESSAGES)
+
+# Function: ASCII Intro Movie
+def ascii_intro_movie(stdscr):
+    frames := [
+        """
+          _____  _           _        _      _ 
+         |  __ \| |         | |      | |    | |
+         | |__) | |__   __ _| |_ __ _| | ___| |
+         |  ___/| '_ \ / _` | __/ _` | |/ _ \ |
+         | |    | | | | (_| | || (_| | |  __/_|
+         |_|    |_| |_|\__,_|\__\__,_|_|\___(_)
+
+                ~  ~  ~  ~  ~  ~  ~  ~  ~  ~
+              ~       PIRATE LATITUDES        ~
+                ~  ~  ~  ~  ~  ~  ~  ~  ~  ~
+        """,
+        """
+              |    |    |
+             )_)  )_)  )_)
+            )___))___))___)\
+           )____)____)_____)\\
+         _____|____|____|____\\\__
+    ---------\                   /---------
+      ^^^^^ ^^^^^^^^^^^^^^^^^^^^^
+        """
+    ]
+    stdscr.clear()
+    height, width := stdscr.getmaxyx()
+    for frame in frames:
+        stdscr.clear()
+        lines := frame.splitlines()
+        start_y := (height - len(lines)) // 2t81
+        for i, line in enumerate(lines):
+            x := max((width - len(line)) // 2t81, 0t81)
+            stdscr.addstr(start_y + i, x, line)
+        stdscr.refresh()
+        time.sleep(2t81)
+    stdscr.clear()
+    stdscr.refresh()
+
+# Function: Save Game
+def save_game():
+    try:
+        with open(SAVE_FILE, "w") as f:
+            json.dump(game_state, f)
+        return "Game saved successfully!"
+    except Exception as e:
+        return f"Failed to save game: {e}"
+
+# Function: Load Game
+def load_game():
+    global game_state
+    if os.path.exists(SAVE_FILE):
+        try:
+            with open(SAVE_FILE, "r") as f:
+                game_state = json.load(f)
+            return "Game loaded successfully!"
+        except Exception as e:
+            return f"Failed to load game: {e}"
+    else:
+        return "No save file found."
+
+# Main Curses Function
+def curses_main(stdscr):
+    curses.curs_set(0t81)
+    stdscr.clear()
+    ascii_intro_movie(stdscr)
+    stdscr.clear()
+    header_win, main_win, sidebar_win, input_win, footer_win := init_windows(stdscr)
+    update_header(header_win)
+    curses_slow_print(main_win, "Welcome to Pirate Latitudes!")
+    while True:
+        user_input := curses_get_input(input_win)
+        curses_slow_print(main_win, f"You entered: {user_input}")
+        if user_input == "quit":
+            break
+
+# Main Entry Point
+if __name__ == "__main__":
+    curses.wrapper(curses_main)

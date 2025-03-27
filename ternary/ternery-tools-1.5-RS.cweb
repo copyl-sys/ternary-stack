@@ -1,0 +1,1089 @@
+%=====================================================================
+% Ternary Tools Suite: Retooled Ternary Computing Utilities in Rust
+% Version: 1.5-RS (Extended Matrix Operations)
+% Author: Grok (inspired by Copyleft Systems)
+% Date: Mar 4, 2025
+% Description:
+%   A command-line suite for ternary computing, enhanced with extended matrix
+%   operations including Strassen's algorithm, determinant calculation, and
+%   matrix inversion, along with other utilities like arithmetic, logic, and
+%   data conversion.
+%=====================================================================
+
+% Define the output file
+@o ternary-tools.rs
+@{
+/*=====================================================================
+  Main Module: Command-Line Interface and Dispatcher
+  ---------------------------------------------------------------------
+  Handles argument parsing and dispatches to subcommands.
+  Provides a unified help message with examples for all subcommands.
+=====================================================================*/
+use std::env;
+use std::io::{self, BufRead};
+use std::process;
+use std::collections::HashMap;
+
+/// Prints a detailed help message with usage examples for all subcommands.
+fn print_help() {
+    println!("Ternary Tools Suite (Rust Version) - Extended Matrix Operations");
+    println!("Usage:");
+    println!("  ternary-tools <subcommand> [options]");
+    println!();
+    println!("Subcommands:");
+    println!("  calc       Evaluate arithmetic expressions");
+    println!("    Usage: calc [--input-decimal | --input-balanced] [--output-decimal | --output-balanced] [<expression>]");
+    println!("    Example: calc \"1 + 2 * 10\"  # Ternary: 1 + 2*3 = 7 -> '21'");
+    println!("    Example: calc --input-decimal \"5 + 3\"  # Decimal: 5+3=8 -> '22'");
+    println!();
+    println!("  hanoi      Solve the Tower of Hanoi problem");
+    println!("    Usage: hanoi [<number_of_disks>]");
+    println!("    Example: hanoi 3");
+    println!();
+    println!("  matrix     Perform matrix operations (add, multiply, det, inv)");
+    println!("    Usage: matrix [flags] <operation> <matrix1> [<matrix2>]");
+    println!("    Operations:");
+    println!("      add       Add two matrices");
+    println!("      multiply  Multiply two matrices (standard or Strassen)");
+    println!("      det       Compute determinant of a square matrix");
+    println!("      inv       Compute inverse of a square matrix");
+    println!("    Flags:");
+    println!("      --use-strassen  Use Strassen's algorithm for multiplication");
+    println!("    Matrix Format: \"1,2;3,4\" (rows separated by ';', elements by ',')");
+    println!("    Examples:");
+    println!("      matrix add \"1,2;3,4\" \"2,0;0,2\"");
+    println!("      matrix --use-strassen multiply \"1,0;0,1\" \"1,0;0,1\"");
+    println!("      matrix det \"1,2;3,4\"");
+    println!("      matrix inv \"1,2;3,4\"");
+    println!();
+    println!("  opcode     Validate or encode opcodes");
+    println!("    Usage: opcode <instruction>");
+    println!("    Example: opcode ADD");
+    println!();
+    println!("  convert    Convert between decimal, ternary, and balanced ternary");
+    println!("    Usage: convert --to-ternary <number> | --to-decimal <ternary> | --to-balanced <number> | --from-balanced <balanced>");
+    println!("    Example: convert --to-ternary 7  # Outputs '21'");
+    println!();
+    println!("  checksum   Compute or verify ternary checksums");
+    println!("    Usage: checksum --compute <ternary> | --verify <ternary> <checksum>");
+    println!("    Example: checksum --compute \"1021\"");
+    println!();
+    println!("  alphanum   Encode/decode text to/from ternary");
+    println!("    Usage: alphanum --encode <text> | --decode <ternary>");
+    println!("    Example: alphanum --encode \"HELLO\"");
+    println!();
+    println!("  logic      Evaluate ternary logic expressions");
+    println!("    Usage: logic <expression>");
+    println!("    Example: logic \"(1 AND 2) OR 0\"");
+    println!();
+    println!("Common Options:");
+    println!("  --input <file>          Read input from a file (default: stdin)");
+    println!("  --output-style <fmt>    Output style: plain (default) or json");
+    println!("  --verbose               Enable verbose logging to stderr");
+    println!("  --help                  Display this help message");
+}
+
+/// Main entry point: parses CLI arguments and dispatches to subcommands.
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 || args.iter().any(|arg| arg == "--help" || arg == "-h") {
+        print_help();
+        return;
+    }
+    let subcommand = &args[1];
+    let sub_args = &args[2..];
+    match subcommand.as_str() {
+        "calc"     => run_calc(sub_args),
+        "hanoi"    => run_hanoi(sub_args),
+        "matrix"   => run_matrix(sub_args),
+        "opcode"   => run_opcode(sub_args),
+        "convert"  => run_convert(sub_args),
+        "checksum" => run_checksum(sub_args),
+        "alphanum" => run_alphanum(sub_args),
+        "logic"    => run_logic(sub_args),
+        _ => {
+            eprintln!("Unknown subcommand: '{}'", subcommand);
+            print_help();
+            process::exit(1);
+        }
+    }
+}
+
+/*=====================================================================
+  Subcommand: calc - Ternary Arithmetic Calculator
+  ---------------------------------------------------------------------
+  Evaluates expressions in ternary, decimal, or balanced ternary formats.
+  Supports flexible input/output formats via flags.
+=====================================================================*/
+fn run_calc(args: &[String]) {
+    let mut input_format = "ternary";
+    let mut output_format = "ternary";
+    let mut output_style = "plain";
+    let mut input_expr = String::new();
+    let mut verbose = false;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--input-decimal" => { input_format = "decimal"; }
+            "--input-balanced" => { input_format = "balanced"; }
+            "--output-decimal" => { output_format = "decimal"; }
+            "--output-balanced" => { output_format = "balanced"; }
+            "--output-style" => {
+                i += 1;
+                if i < args.len() {
+                    output_style = &args[i];
+                    if output_style != "plain" && output_style != "json" {
+                        eprintln!("Unsupported output style '{}'.", output_style);
+                        process::exit(1);
+                    }
+                } else {
+                    eprintln!("--output-style requires an argument");
+                    process::exit(1);
+                }
+            }
+            "--verbose" => { verbose = true; }
+            "--input" => {
+                i += 1;
+                if i < args.len() {
+                    match std::fs::read_to_string(&args[i]) {
+                        Ok(contents) => input_expr = contents.trim().to_string(),
+                        Err(e) => {
+                            eprintln!("Error reading file '{}': {}", args[i], e);
+                            process::exit(1);
+                        }
+                    }
+                } else {
+                    eprintln!("--input requires a filename");
+                    process::exit(1);
+                }
+            }
+            _ => {
+                if input_expr.is_empty() {
+                    input_expr = args[i..].join(" ");
+                    break;
+                }
+            }
+        }
+        i += 1;
+    }
+    if input_expr.is_empty() {
+        if verbose { eprintln!("Reading from stdin..."); }
+        let stdin = io::stdin();
+        let mut lines = stdin.lock().lines();
+        if let Some(Ok(line)) = lines.next() { input_expr = line; }
+        else { eprintln!("Failed to read from stdin."); process::exit(1); }
+    }
+    match tritjs_eval_expression(&input_expr, input_format) {
+        Ok(result) => {
+            let output_str = match output_format {
+                "ternary" => int_to_ternary(result),
+                "decimal" => result.to_string(),
+                "balanced" => int_to_balanced_ternary(result),
+                _ => unreachable!(),
+            };
+            if output_style == "json" {
+                println!("{{ \"result\": \"{}\", \"value\": {} }}", output_str, result);
+            } else {
+                println!("Result: {}", output_str);
+            }
+        }
+        Err(e) => {
+            eprintln!("Error evaluating expression: {}", e);
+            process::exit(1);
+        }
+    }
+}
+
+/*=====================================================================
+  Subcommand: hanoi - Tower of Hanoi Solver
+  ---------------------------------------------------------------------
+  Solves the Tower of Hanoi puzzle for a specified number of disks.
+=====================================================================*/
+fn run_hanoi(args: &[String]) {
+    let n: u32 = if !args.is_empty() {
+        args[0].parse().unwrap_or(3)
+    } else { 3 };
+    println!("Solving Tower of Hanoi with {} disks:", n);
+    hanoi(n, 'A', 'C', 'B');
+}
+
+fn hanoi(n: u32, from: char, to: char, aux: char) {
+    if n == 1 {
+        println!("Move disk 1 from {} to {}", from, to);
+    } else {
+        hanoi(n - 1, from, aux, to);
+        println!("Move disk {} from {} to {}", n, from, to);
+        hanoi(n - 1, aux, to, from);
+    }
+}
+
+/*=====================================================================
+  Subcommand: matrix - Matrix Operations
+  ---------------------------------------------------------------------
+  Supports addition, multiplication (standard and Strassen),
+  determinant calculation, and inversion of matrices.
+=====================================================================*/
+fn run_matrix(args: &[String]) {
+    let mut use_strassen = false;
+    let mut operation = None;
+    let mut matrices = Vec::new();
+    for arg in args {
+        if arg.starts_with("--") {
+            if arg == "--use-strassen" {
+                use_strassen = true;
+            } else {
+                eprintln!("Unknown flag: {}", arg);
+                std::process::exit(1);
+            }
+        } else if operation.is_none() {
+            operation = Some(arg.clone());
+        } else {
+            matrices.push(arg.clone());
+        }
+    }
+    let operation = operation.unwrap_or_else(|| {
+        eprintln!("Missing operation.");
+        std::process::exit(1);
+    });
+    match operation.as_str() {
+        "add" | "multiply" => {
+            if matrices.len() != 2 {
+                eprintln!("Operation '{}' requires two matrices.", operation);
+                std::process::exit(1);
+            }
+            let m1 = parse_matrix(&matrices[0]).unwrap_or_else(|e| {
+                eprintln!("Error parsing matrix1: {}", e);
+                std::process::exit(1);
+            });
+            let m2 = parse_matrix(&matrices[1]).unwrap_or_else(|e| {
+                eprintln!("Error parsing matrix2: {}", e);
+                std::process::exit(1);
+            });
+            if operation == "add" {
+                let result = matrix_add(&m1, &m2);
+                println!("Result:");
+                print_matrix(&result);
+            } else if use_strassen {
+                let result = strassen_multiply(&m1, &m2).unwrap_or_else(|e| {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                });
+                println!("Result:");
+                print_matrix(&result);
+            } else {
+                let result = matrix_multiply(&m1, &m2).unwrap_or_else(|e| {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                });
+                println!("Result:");
+                print_matrix(&result);
+            }
+        }
+        "det" | "inv" => {
+            if matrices.len() != 1 {
+                eprintln!("Operation '{}' requires one matrix.", operation);
+                std::process::exit(1);
+            }
+            let m = parse_matrix(&matrices[0]).unwrap_or_else(|e| {
+                eprintln!("Error parsing matrix: {}", e);
+                std::process::exit(1);
+            });
+            if m.len() != m[0].len() {
+                eprintln!("Operation '{}' requires a square matrix.", operation);
+                std::process::exit(1);
+            }
+            if operation == "det" {
+                let det = compute_determinant(&m);
+                println!("Determinant: {:.2}", det);
+            } else {
+                let inv = invert_matrix(&m).unwrap_or_else(|e| {
+                    eprintln!("Error: {}", e);
+                    std::process::exit(1);
+                });
+                println!("Inverse:");
+                print_matrix(&inv);
+            }
+        }
+        _ => {
+            eprintln!("Unsupported operation: {}. Use 'add', 'multiply', 'det', or 'inv'.", operation);
+            std::process::exit(1);
+        }
+    }
+}
+
+type Matrix = Vec<Vec<f64>>;
+
+fn parse_matrix(s: &str) -> Result<Matrix, String> {
+    let rows: Vec<&str> = s.split(';').collect();
+    let mut matrix = Vec::new();
+    for row in rows {
+        let elems: Result<Vec<f64>, _> = row.split(',').map(|num| num.trim().parse::<f64>()).collect();
+        matrix.push(elems.map_err(|e| format!("Parsing error: {}", e))?);
+    }
+    let len = matrix.first().map(|r| r.len()).unwrap_or(0);
+    if matrix.iter().any(|r| r.len() != len) {
+        return Err("Rows have inconsistent lengths".to_string());
+    }
+    Ok(matrix)
+}
+
+fn print_matrix(m: &Matrix) {
+    for row in m {
+        let row_str: Vec<String> = row.iter().map(|v| format!("{:.2}", v)).collect();
+        println!("{}", row_str.join(" "));
+    }
+}
+
+fn matrix_add(a: &Matrix, b: &Matrix) -> Matrix {
+    a.iter().zip(b.iter()).map(|(row_a, row_b)| {
+        row_a.iter().zip(row_b.iter()).map(|(&x, &y)| x + y).collect()
+    }).collect()
+}
+
+fn matrix_multiply(a: &Matrix, b: &Matrix) -> Result<Matrix, String> {
+    let a_rows = a.len();
+    let a_cols = a[0].len();
+    let b_rows = b.len();
+    let b_cols = b[0].len();
+    if a_cols != b_rows {
+        return Err("Incompatible matrix dimensions for multiplication".to_string());
+    }
+    let mut result = vec![vec![0.0; b_cols]; a_rows];
+    for i in 0..a_rows {
+        for j in 0..b_cols {
+            for k in 0..a_cols {
+                result[i][j] += a[i][k] * b[k][j];
+            }
+        }
+    }
+    Ok(result)
+}
+
+fn is_power_of_two(n: usize) -> bool {
+    n > 0 && (n & (n - 1)) == 0
+}
+
+fn matrix_op(a: &Matrix, b: &Matrix, op: fn(f64, f64) -> f64) -> Matrix {
+    a.iter().zip(b.iter()).map(|(row_a, row_b)| {
+        row_a.iter().zip(row_b.iter()).map(|(&x, &y)| op(x, y)).collect()
+    }).collect()
+}
+
+fn get_quadrant(m: &Matrix, row_start: usize, row_end: usize, col_start: usize, col_end: usize) -> Matrix {
+    m[row_start..row_end].iter().map(|row| row[col_start..col_end].to_vec()).collect()
+}
+
+fn combine_matrices(c11: &Matrix, c12: &Matrix, c21: &Matrix, c22: &Matrix) -> Matrix {
+    let n = c11.len() * 2;
+    let mut result = vec![vec![0.0; n]; n];
+    for i in 0..c11.len() {
+        for j in 0..c11[0].len() {
+            result[i][j] = c11[i][j];
+            result[i][j + c11[0].len()] = c12[i][j];
+            result[i + c11.len()][j] = c21[i][j];
+            result[i + c11.len()][j + c11[0].len()] = c22[i][j];
+        }
+    }
+    result
+}
+
+fn strassen_multiply(a: &Matrix, b: &Matrix) -> Result<Matrix, String> {
+    let n = a.len();
+    if n == 0 || n != a[0].len() || n != b.len() || n != b[0].len() {
+        return Err("Matrices must be square and of the same size".to_string());
+    }
+    if !is_power_of_two(n) {
+        return Err("Matrix size must be a power of 2 for Strassen's algorithm".to_string());
+    }
+    if n <= 64 { // Threshold for standard multiplication
+        return matrix_multiply(a, b);
+    }
+    let half = n / 2;
+    let a11 = get_quadrant(a, 0, half, 0, half);
+    let a12 = get_quadrant(a, 0, half, half, n);
+    let a21 = get_quadrant(a, half, n, 0, half);
+    let a22 = get_quadrant(a, half, n, half, n);
+    let b11 = get_quadrant(b, 0, half, 0, half);
+    let b12 = get_quadrant(b, 0, half, half, n);
+    let b21 = get_quadrant(b, half, n, 0, half);
+    let b22 = get_quadrant(b, half, n, half, n);
+
+    let m1 = strassen_multiply(&matrix_op(&a11, &a22, |x, y| x + y), &matrix_op(&b11, &b22, |x, y| x + y))?;
+    let m2 = strassen_multiply(&matrix_op(&a21, &a22, |x, y| x + y), &b11)?;
+    let m3 = strassen_multiply(&a11, &matrix_op(&b12, &b22, |x, y| x - y))?;
+    let m4 = strassen_multiply(&a22, &matrix_op(&b21, &b11, |x, y| x - y))?;
+    let m5 = strassen_multiply(&matrix_op(&a11, &a12, |x, y| x + y), &b22)?;
+    let m6 = strassen_multiply(&matrix_op(&a21, &a11, |x, y| x - y), &matrix_op(&b11, &b12, |x, y| x + y))?;
+    let m7 = strassen_multiply(&matrix_op(&a12, &a22, |x, y| x - y), &matrix_op(&b21, &b22, |x, y| x + y))?;
+
+    let c11 = matrix_op(&matrix_op(&m1, &m4, |x, y| x + y), &matrix_op(&m5, &m7, |x, y| -x + y), |x, y| x + y);
+    let c12 = matrix_op(&m3, &m5, |x, y| x + y);
+    let c21 = matrix_op(&m2, &m4, |x, y| x + y);
+    let c22 = matrix_op(&matrix_op(&m1, &m2, |x, y| x - y), &matrix_op(&m3, &m6, |x, y| x + y), |x, y| x + y);
+
+    Ok(combine_matrices(&c11, &c12, &c21, &c22))
+}
+
+fn lu_decomposition(m: &Matrix) -> Result<(Matrix, Matrix, i32), String> {
+    let n = m.len();
+    if n == 0 || n != m[0].len() {
+        return Err("Matrix must be square and non-empty".to_string());
+    }
+    let mut a = m.clone();
+    let mut l = vec![vec![0.0; n]; n];
+    let mut swaps = 0;
+    for i in 0..n {
+        l[i][i] = 1.0;
+    }
+    for k in 0..n {
+        let mut max_row = k;
+        let mut max_val = a[k][k].abs();
+        for i in k + 1..n {
+            let val = a[i][k].abs();
+            if val > max_val {
+                max_val = val;
+                max_row = i;
+            }
+        }
+        if max_val == 0.0 {
+            return Err("Matrix is singular".to_string());
+        }
+        if max_row != k {
+            a.swap(k, max_row);
+            swaps += 1;
+        }
+        for j in k + 1..n {
+            let m = a[j][k] / a[k][k];
+            l[j][k] = m;
+            for l_idx in k..n {
+                a[j][l_idx] -= m * a[k][l_idx];
+            }
+        }
+    }
+    Ok((l, a, swaps)) // a becomes U
+}
+
+fn compute_determinant(m: &Matrix) -> f64 {
+    match lu_decomposition(m) {
+        Ok((_, u, swaps)) => {
+            let mut det = if swaps % 2 == 0 { 1.0 } else { -1.0 };
+            for i in 0..u.len() {
+                det *= u[i][i];
+            }
+            det
+        }
+        Err(_) => 0.0, // Singular matrix
+    }
+}
+
+fn identity_matrix(n: usize) -> Matrix {
+    let mut id = vec![vec![0.0; n]; n];
+    for i in 0..n {
+        id[i][i] = 1.0;
+    }
+    id
+}
+
+fn invert_matrix(m: &Matrix) -> Result<Matrix, String> {
+    let n = m.len();
+    if n == 0 || n != m[0].len() {
+        return Err("Matrix must be square and non-empty".to_string());
+    }
+    let mut a = m.clone();
+    let mut id = identity_matrix(n);
+    for k in 0..n {
+        let mut max_row = k;
+        let mut max_val = a[k][k].abs();
+        for i in k + 1..n {
+            let val = a[i][k].abs();
+            if val > max_val {
+                max_val = val;
+                max_row = i;
+            }
+        }
+        if max_val == 0.0 {
+            return Err("Matrix is singular and cannot be inverted".to_string());
+        }
+        if max_row != k {
+            a.swap(k, max_row);
+            id.swap(k, max_row);
+        }
+        let pivot = a[k][k];
+        for j in 0..n {
+            a[k][j] /= pivot;
+            id[k][j] /= pivot;
+        }
+        for i in 0..n {
+            if i != k {
+                let factor = a[i][k];
+                for j in 0..n {
+                    a[i][j] -= factor * a[k][j];
+                    id[i][j] -= factor * id[k][j];
+                }
+            }
+        }
+    }
+    Ok(id)
+}
+
+/*=====================================================================
+  Subcommand: opcode - Opcode Validator and Encoder
+  ---------------------------------------------------------------------
+  Validates opcodes and encodes them into ternary strings.
+=====================================================================*/
+fn run_opcode(args: &[String]) {
+    if args.is_empty() {
+        eprintln!("Usage: opcode <instruction>");
+        process::exit(1);
+    }
+    let opcode = args[0].to_uppercase();
+    let valid_opcodes = vec!["ADD", "SUB", "MUL", "DIV", "NOP", "JMP"];
+    if valid_opcodes.contains(&opcode.as_str()) {
+        println!("Opcode '{}' is valid.", opcode);
+        let encoded: Vec<String> = opcode.chars().map(|c| int_to_ternary(c as i32)).collect();
+        println!("Encoded: {}", encoded.join(" "));
+    } else {
+        eprintln!("Invalid opcode: '{}'", opcode);
+        process::exit(1);
+    }
+}
+
+/*=====================================================================
+  Subcommand: convert - Number Base Converter
+  ---------------------------------------------------------------------
+  Converts between decimal, ternary, and balanced ternary formats.
+=====================================================================*/
+fn run_convert(args: &[String]) {
+    if args.len() < 2 {
+        eprintln!("Usage: convert --to-ternary <number> | --to-decimal <ternary> | --to-balanced <number> | --from-balanced <balanced>");
+        process::exit(1);
+    }
+    match args[0].as_str() {
+        "--to-ternary" => {
+            let number: i32 = args[1].parse().unwrap_or_else(|_| {
+                eprintln!("Invalid number: {}", args[1]);
+                process::exit(1);
+            });
+            println!("Ternary: {}", int_to_ternary(number));
+        }
+        "--to-decimal" => {
+            let ternary_str = args[1].replace(" ", "");
+            match parse_ternary(&ternary_str) {
+                Ok(num) => println!("Decimal: {}", num),
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        "--to-balanced" => {
+            let number: i32 = args[1].parse().unwrap_or_else(|_| {
+                eprintln!("Invalid number: {}", args[1]);
+                process::exit(1);
+            });
+            println!("Balanced Ternary: {}", int_to_balanced_ternary(number));
+        }
+        "--from-balanced" => {
+            let balanced_str = args[1].replace(" ", "");
+            match parse_balanced_ternary(&balanced_str) {
+                Ok(num) => println!("Decimal: {}", num),
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        _ => {
+            eprintln!("Invalid option. Use --to-ternary, --to-decimal, --to-balanced, or --from-balanced.");
+            process::exit(1);
+        }
+    }
+}
+
+/*=====================================================================
+  Subcommand: checksum - Ternary Checksum Utility
+  ---------------------------------------------------------------------
+  Computes a two-trit checksum or verifies it against a provided value.
+=====================================================================*/
+fn run_checksum(args: &[String]) {
+    if args.len() < 2 {
+        eprintln!("Usage: checksum --compute <ternary> | --verify <ternary> <checksum>");
+        process::exit(1);
+    }
+    match args[0].as_str() {
+        "--compute" => {
+            let tern = args[1..].join("");
+            let checksum = compute_checksum(&tern);
+            println!("Computed checksum: {}", checksum);
+        }
+        "--verify" => {
+            if args.len() < 3 {
+                eprintln!("--verify requires a ternary string and a 2-trit checksum.");
+                process::exit(1);
+            }
+            let tern = args[1..args.len()-1].join("");
+            let provided = &args[args.len()-1];
+            if provided.len() != 2 || !provided.chars().all(|c| c >= '0' && c <= '2') {
+                eprintln!("Invalid checksum format. Must be a 2-trit string (e.g., '01').");
+                process::exit(1);
+            }
+            let computed = compute_checksum(&tern);
+            if computed == *provided {
+                println!("Checksum verified: {}", computed);
+            } else {
+                println!("Checksum mismatch: computed {} but provided {}", computed, provided);
+                process::exit(1);
+            }
+        }
+        _ => {
+            eprintln!("Invalid option. Use --compute or --verify.");
+            process::exit(1);
+        }
+    }
+}
+
+fn compute_checksum(tern: &str) -> String {
+    let mut s1 = 0u8; // Sum of trits mod 3
+    let mut s2 = 0u8; // Weighted sum mod 3
+    for (i, c) in tern.chars().enumerate() {
+        if let Some(digit) = c.to_digit(10) {
+            if digit > 2 {
+                panic!("Invalid trit '{}'", c);
+            }
+            let trit = digit as u8;
+            s1 = (s1 + trit) % 3;
+            s2 = (s2 + (i as u8 + 1) * trit) % 3;
+        } else {
+            panic!("Invalid character '{}'", c);
+        }
+    }
+    format!("{:1}{:1}", s1, s2)
+}
+
+/*=====================================================================
+  Subcommand: alphanum - Alphanumeric Encoder/Decoder
+  ---------------------------------------------------------------------
+  Encodes text to 4-trit ternary strings and decodes back to text.
+=====================================================================*/
+fn run_alphanum(args: &[String]) {
+    if args.len() < 2 {
+        eprintln!("Usage: alphanum --encode <text> | --decode <ternary>");
+        process::exit(1);
+    }
+    let char_set: Vec<char> = ('A'..='Z').chain('0'..='9').chain(vec![' ', '.', ',', '!', '?', '-', '_', '/', '(', ')']).collect();
+    match args[0].as_str() {
+        "--encode" => {
+            let text = args[1..].join(" ");
+            match encode_text_to_ternary(&text, &char_set) {
+                Ok(tern) => println!("Encoded ternary: {}", tern),
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        "--decode" => {
+            let tern = args[1..].join("");
+            match decode_ternary_to_text(&tern, &char_set) {
+                Ok(text) => println!("Decoded text: {}", text),
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        _ => {
+            eprintln!("Invalid option. Use --encode or --decode.");
+            process::exit(1);
+        }
+    }
+}
+
+fn encode_text_to_ternary(text: &str, char_set: &Vec<char>) -> Result<String, String> {
+    let mut result = String::new();
+    for c in text.chars() {
+        let decimal = char_set.iter().position(|&x| x == c).ok_or_else(|| format!("Character '{}' not in char_set", c))?;
+        let tern = decimal_to_ternary_4(decimal as u8);
+        result.push_str(&tern);
+    }
+    Ok(result)
+}
+
+fn decode_ternary_to_text(tern: &str, char_set: &Vec<char>) -> Result<String, String> {
+    if tern.len() % 4 != 0 {
+        return Err("Ternary string length must be a multiple of 4".to_string());
+    }
+    let mut result = String::new();
+    for chunk in tern.chars().collect::<Vec<_>>().chunks(4) {
+        let chunk_str: String = chunk.iter().collect();
+        let decimal = ternary_4_to_decimal(&chunk_str)?;
+        let c = char_set.get(decimal as usize).ok_or_else(|| format!("Invalid decimal value {}", decimal))?.clone();
+        result.push(c);
+    }
+    Ok(result)
+}
+
+fn decimal_to_ternary_4(n: u8) -> String {
+    let mut tern = String::new();
+    let mut num = n;
+    for _ in 0..4 {
+        let remainder = num % 3;
+        tern.push(char::from_digit(remainder as u32, 10).unwrap());
+        num /= 3;
+    }
+    while tern.len() < 4 {
+        tern.push('0');
+    }
+    tern.chars().rev().collect()
+}
+
+fn ternary_4_to_decimal(tern: &str) -> Result<u8, String> {
+    if tern.len() != 4 {
+        return Err("Ternary string must be 4 characters".to_string());
+    }
+    let mut value = 0u8;
+    for (i, c) in tern.chars().enumerate() {
+        let digit = c.to_digit(10).ok_or_else(|| format!("Invalid trit '{}'", c))?;
+        if digit > 2 {
+            return Err(format!("Invalid trit '{}'", c));
+        }
+        value += digit as u8 * 3u8.pow(3 - i as u32);
+    }
+    Ok(value)
+}
+
+/*=====================================================================
+  Subcommand: logic - Ternary Logic Evaluator
+  ---------------------------------------------------------------------
+  Evaluates expressions with ternary AND, OR, and NOT operations.
+=====================================================================*/
+fn run_logic(args: &[String]) {
+    let expr = args.join(" ");
+    match eval_logic_expression(&expr) {
+        Ok(result) => println!("Result: {}", result),
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            process::exit(1);
+        }
+    }
+}
+
+fn eval_logic_expression(expr: &str) -> Result<u8, String> {
+    let chars: Vec<char> = expr.chars().collect();
+    let mut pos = 0;
+    let result = parse_logic_expr(&chars, &mut pos)?;
+    while pos < chars.len() {
+        if !chars[pos].is_whitespace() { return Err(format!("Unexpected character '{}'", chars[pos])); }
+        pos += 1;
+    }
+    Ok(result)
+}
+
+fn parse_logic_expr(chars: &[char], pos: &mut usize) -> Result<u8, String> {
+    let mut value = parse_logic_term(chars, pos)?;
+    while *pos < chars.len() {
+        skip_whitespace(chars, pos);
+        if chars.get(*pos) == Some(&'O') && chars.get(*pos+1) == Some(&'R') {
+            *pos += 2;
+            value = ternary_or(value, parse_logic_term(chars, pos)?);
+        } else {
+            break;
+        }
+    }
+    Ok(value)
+}
+
+fn parse_logic_term(chars: &[char], pos: &mut usize) -> Result<u8, String> {
+    let mut value = parse_logic_factor(chars, pos)?;
+    while *pos < chars.len() {
+        skip_whitespace(chars, pos);
+        if chars.get(*pos) == Some(&'A') && chars.get(*pos+1) == Some(&'N') && chars.get(*pos+2) == Some(&'D') {
+            *pos += 3;
+            value = ternary_and(value, parse_logic_factor(chars, pos)?);
+        } else {
+            break;
+        }
+    }
+    Ok(value)
+}
+
+fn parse_logic_factor(chars: &[char], pos: &mut usize) -> Result<u8, String> {
+    skip_whitespace(chars, pos);
+    if *pos >= chars.len() { return Err("Unexpected end of expression".to_string()); }
+    if chars[*pos] == '(' {
+        *pos += 1;
+        let value = parse_logic_expr(chars, pos)?;
+        skip_whitespace(chars, pos);
+        if *pos >= chars.len() || chars[*pos] != ')' { return Err("Missing closing parenthesis".to_string()); }
+        *pos += 1;
+        Ok(value)
+    } else if chars[*pos] == 'N' && chars.get(*pos+1) == Some(&'O') && chars.get(*pos+2) == Some(&'T') {
+        *pos += 3;
+        let value = parse_logic_factor(chars, pos)?;
+        Ok(ternary_not(value))
+    } else if chars[*pos].is_digit(10) {
+        let digit = chars[*pos].to_digit(10).unwrap();
+        if digit > 2 { return Err(format!("Invalid digit '{}'", digit)); }
+        *pos += 1;
+        Ok(digit as u8)
+    } else {
+        Err(format!("Unexpected character '{}'", chars[*pos]))
+    }
+}
+
+fn ternary_and(a: u8, b: u8) -> u8 { a.min(b) }
+fn ternary_or(a: u8, b: u8) -> u8 { a.max(b) }
+fn ternary_not(a: u8) -> u8 { 2 - a }
+
+/*=====================================================================
+  Helper Module: Arithmetic Evaluator and Conversions
+  ---------------------------------------------------------------------
+  Core functions for parsing and evaluating arithmetic expressions,
+  and converting between number bases.
+=====================================================================*/
+#[derive(Debug)]
+enum ParseError {
+    InvalidDigit(char),
+    UnexpectedChar(char),
+    MissingClosingParen,
+    DivisionByZero,
+    EmptyExpression,
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ParseError::InvalidDigit(c) => write!(f, "Invalid digit '{}'", c),
+            ParseError::UnexpectedChar(c) => write!(f, "Unexpected character '{}'", c),
+            ParseError::MissingClosingParen => write!(f, "Missing closing parenthesis"),
+            ParseError::DivisionByZero => write!(f, "Division by zero"),
+            ParseError::EmptyExpression => write!(f, "Expression is empty"),
+        }
+    }
+}
+
+fn tritjs_eval_expression(expr: &str, input_format: &str) -> Result<i32, ParseError> {
+    let expr = expr.trim();
+    if expr.is_empty() { return Err(ParseError::EmptyExpression); }
+    let chars: Vec<char> = expr.chars().collect();
+    let mut pos = 0;
+    let result = parse_expr(&chars, &mut pos, input_format)?;
+    while pos < chars.len() {
+        if !chars[pos].is_whitespace() { return Err(ParseError::UnexpectedChar(chars[pos])); }
+        pos += 1;
+    }
+    Ok(result)
+}
+
+fn parse_expr(chars: &[char], pos: &mut usize, input_format: &str) -> Result<i32, ParseError> {
+    let mut value = parse_term(chars, pos, input_format)?;
+    while *pos < chars.len() {
+        skip_whitespace(chars, pos);
+        match chars.get(*pos) {
+            Some('+') => { *pos += 1; value += parse_term(chars, pos, input_format)?; },
+            Some('-') => { *pos += 1; value -= parse_term(chars, pos, input_format)?; },
+            _ => break,
+        }
+    }
+    Ok(value)
+}
+
+fn parse_term(chars: &[char], pos: &mut usize, input_format: &str) -> Result<i32, ParseError> {
+    let mut value = parse_factor(chars, pos, input_format)?;
+    while *pos < chars.len() {
+        skip_whitespace(chars, pos);
+        match chars.get(*pos) {
+            Some('*') => { *pos += 1; value *= parse_factor(chars, pos, input_format)?; },
+            Some('/') => {
+                *pos += 1;
+                let next = parse_factor(chars, pos, input_format)?;
+                if next == 0 { return Err(ParseError::DivisionByZero); }
+                value /= next;
+            },
+            _ => break,
+        }
+    }
+    Ok(value)
+}
+
+fn parse_factor(chars: &[char], pos: &mut usize, input_format: &str) -> Result<i32, ParseError> {
+    skip_whitespace(chars, pos);
+    if *pos >= chars.len() { return Err(ParseError::UnexpectedChar('\0')); }
+    if chars[*pos] == '(' {
+        *pos += 1;
+        let value = parse_expr(chars, pos, input_format)?;
+        skip_whitespace(chars, pos);
+        if *pos >= chars.len() || chars[*pos] != ')' { return Err(ParseError::MissingClosingParen); }
+        *pos += 1;
+        Ok(value)
+    } else { parse_number(chars, pos, input_format) }
+}
+
+fn parse_number(chars: &[char], pos: &mut usize, input_format: &str) -> Result<i32, ParseError> {
+    skip_whitespace(chars, pos);
+    if *pos >= chars.len() { return Err(ParseError::UnexpectedChar('\0')); }
+    let mut value = 0;
+    let mut has_digits = false;
+    if input_format == "decimal" {
+        while *pos < chars.len() {
+            let c = chars[*pos];
+            if c.is_digit(10) {
+                let digit = c.to_digit(10).unwrap() as i32;
+                value = value * 10 + digit;
+                has_digits = true;
+                *pos += 1;
+            } else { break; }
+        }
+    } else if input_format == "ternary" {
+        while *pos < chars.len() {
+            let c = chars[*pos];
+            if c >= '0' && c <= '2' {
+                let digit = c.to_digit(10).unwrap() as i32;
+                value = value * 3 + digit;
+                has_digits = true;
+                *pos += 1;
+            } else { break; }
+        }
+    } else if input_format == "balanced" {
+        while *pos < chars.len() {
+            let c = chars[*pos];
+            let digit = match c {
+                '0' => 0,
+                '1' => 1,
+                'T' => -1,
+                _ => break,
+            };
+            value = value * 3 + digit;
+            has_digits = true;
+            *pos += 1;
+        }
+    }
+    if !has_digits { return Err(ParseError::InvalidDigit(chars[*pos])); }
+    Ok(value)
+}
+
+fn skip_whitespace(chars: &[char], pos: &mut usize) {
+    while *pos < chars.len() && chars[*pos].is_whitespace() { *pos += 1; }
+}
+
+fn int_to_ternary(mut n: i32) -> String {
+    if n == 0 { return "0".to_string(); }
+    let mut tern = String::new();
+    while n > 0 {
+        let remainder = n % 3;
+        tern.push(char::from_digit(remainder as u32, 10).unwrap());
+        n /= 3;
+    }
+    tern.chars().rev().collect()
+}
+
+fn parse_ternary(s: &str) -> Result<i32, String> {
+    let mut value = 0;
+    for c in s.chars() {
+        let digit = c.to_digit(10).ok_or_else(|| format!("Invalid ternary digit '{}'", c))?;
+        if digit > 2 { return Err(format!("Invalid ternary digit '{}'", c)); }
+        value = value * 3 + digit as i32;
+    }
+    Ok(value)
+}
+
+fn parse_balanced_ternary(s: &str) -> Result<i32, String> {
+    let mut value = 0;
+    for c in s.chars() {
+        let digit = match c {
+            '0' => 0,
+            '1' => 1,
+            'T' => -1,
+            _ => return Err(format!("Invalid balanced trit '{}'", c)),
+        };
+        value = value * 3 + digit;
+    }
+    Ok(value)
+}
+
+fn int_to_balanced_ternary(mut n: i32) -> String {
+    if n == 0 { return "0".to_string(); }
+    let mut result = String::new();
+    while n != 0 {
+        let remainder = ((n + 3) % 3) - 1; // Adjust to -1, 0, 1
+        result.push(match remainder {
+            -1 => 'T',
+            0 => '0',
+            1 => '1',
+            _ => unreachable!(),
+        });
+        n = (n - remainder) / 3;
+    }
+    result.chars().rev().collect()
+}
+
+/*=====================================================================
+  Unit Tests
+  ---------------------------------------------------------------------
+  Verifies the correctness of key functionalities.
+=====================================================================*/
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calc_ternary() {
+        assert_eq!(tritjs_eval_expression("1 + 2 * 10", "ternary").unwrap(), 7); // 1 + 2*3 = 7
+        assert_eq!(int_to_ternary(7), "21");
+    }
+
+    #[test]
+    fn test_calc_decimal() {
+        assert_eq!(tritjs_eval_expression("5 + 3", "decimal").unwrap(), 8);
+        assert_eq!(int_to_ternary(8), "22");
+    }
+
+    #[test]
+    fn test_matrix_add() {
+        let m1 = parse_matrix("1,2;3,4").unwrap();
+        let m2 = parse_matrix("1,1;1,1").unwrap();
+        let result = matrix_add(&m1, &m2);
+        assert_eq!(result, vec![vec![2.0, 3.0], vec![4.0, 5.0]]);
+    }
+
+    #[test]
+    fn test_matrix_multiply() {
+        let m1 = parse_matrix("1,2;3,4").unwrap();
+        let m2 = parse_matrix("2,0;0,2").unwrap();
+        let result = matrix_multiply(&m1, &m2).unwrap();
+        assert_eq!(result, vec![vec![2.0, 4.0], vec![6.0, 8.0]]);
+    }
+
+    #[test]
+    fn test_strassen_multiply() {
+        let m1 = parse_matrix("1,0;0,1").unwrap();
+        let m2 = parse_matrix("1,0;0,1").unwrap();
+        let result = strassen_multiply(&m1, &m2).unwrap();
+        assert_eq!(result, vec![vec![1.0, 0.0], vec![0.0, 1.0]]);
+    }
+
+    #[test]
+    fn test_matrix_det() {
+        let m = parse_matrix("1,2;3,4").unwrap();
+        let det = compute_determinant(&m);
+        assert_eq!(det, -2.0);
+    }
+
+    #[test]
+    fn test_matrix_inv() {
+        let m = parse_matrix("1,2;3,4").unwrap();
+        let inv = invert_matrix(&m).unwrap();
+        assert_eq!(inv, vec![vec![-2.0, 1.0], vec![1.5, -0.5]]);
+    }
+
+    #[test]
+    fn test_alphanum_encode_decode() {
+        let char_set: Vec<char> = ('A'..='Z').chain('0'..='9').chain(vec![' ', '.', ',', '!', '?', '-', '_', '/', '(', ')']).collect();
+        let text = "A";
+        let encoded = encode_text_to_ternary(text, &char_set).unwrap();
+        assert_eq!(encoded, "0000");
+        let decoded = decode_ternary_to_text(&encoded, &char_set).unwrap();
+        assert_eq!(decoded, "A");
+    }
+}
+@}

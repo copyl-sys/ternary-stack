@@ -1,0 +1,128 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <windows.h>
+#include <time.h>
+#include <limits.h>
+
+#define ENABLE_VERBOSE_LOGGING 1
+#define VERSION "2.0-windows-full"
+#define BASE_81 81
+#define T81_MMAP_THRESHOLD (500 * 1024)
+
+typedef int TritError;
+#if ENABLE_VERBOSE_LOGGING
+#define LOG_ERROR(err, context) log_error(err, context, __FILE__, __LINE__)
+#else
+#define LOG_ERROR(err, context) log_error(err, context)
+#endif
+
+/* Data Structures */
+typedef struct {
+    int sign; /* 0 = positive, 1 = negative */
+    unsigned char *digits; /* Array of base-81 digits (little-endian) */
+    size_t len; /* Number of digits */
+    int is_mapped; /* 1 if allocated with Windows file mapping */
+    HANDLE hFile; /* File handle */
+    HANDLE hMap; /* Mapping handle */
+    char tmp_path[MAX_PATH]; /* Temporary file path */
+} T81BigInt;
+
+typedef struct {
+    T81BigInt real;
+    T81BigInt imag;
+} T81Complex;
+
+/* Global Variables */
+static FILE* audit_log = NULL;
+static long total_mapped_bytes = 0;
+static int operation_steps = 0;
+
+/* Function Prototypes */
+TritError allocate_digits(T81BigInt *x, size_t lengthNeeded);
+void t81bigint_free(T81BigInt* x);
+void tritbig_free(T81BigInt* x);
+TritError parse_trit_string(const char* s, T81BigInt** out);
+TritError t81bigint_to_trit_string(const T81BigInt* in, char** out);
+TritError tritjs_add_big(T81BigInt* A, T81BigInt* B, T81BigInt** result);
+TritError tritjs_subtract_big(T81BigInt* A, T81BigInt* B, T81BigInt** result);
+TritError tritjs_multiply_big(T81BigInt* A, T81BigInt* B, T81BigInt** result);
+TritError tritjs_divide_big(T81BigInt* A, T81BigInt* B, T81BigInt** quotient, T81BigInt** remainder);
+TritError tritjs_power_big(T81BigInt* base, T81BigInt* exp, T81BigInt** result);
+TritError tritjs_factorial_big(T81BigInt* a, T81BigInt** result);
+TritError tritjs_log3_complex(T81BigInt* a, int precision, T81Complex** result);
+TritError tritjs_sqrt_complex(T81BigInt* a, int precision, T81Complex** result);
+
+/* Fix: Memory Management */
+void t81bigint_free(T81BigInt* x) {
+    if (!x) return;
+    if (x->is_mapped && x->digits) {
+        UnmapViewOfFile(x->digits);
+        CloseHandle(x->hMap);
+        CloseHandle(x->hFile);
+        DeleteFile(x->tmp_path);
+        total_mapped_bytes -= (x->len == 0 ? 1 : x->len);
+    } else {
+        free(x->digits);
+    }
+    memset(x, 0, sizeof(*x));
+}
+
+/* Fix: Logarithm Handling */
+TritError tritjs_log3_complex(T81BigInt* a, int precision, T81Complex** result) {
+    (void)precision;
+    if (!a) return 2;
+    if (a->len == 1 && a->digits[0] == 0) return 3; // Handle log3(0) error
+
+    *result = (T81Complex*)calloc(1, sizeof(T81Complex));
+    if (!*result) return 1;
+    double d;
+    if (t81bigint_to_double(a, &d)) return 2;
+    if (d > 0) {
+        double l = log(d) / log(3.0);
+        if (double_to_t81bigint(l, &(*result)->real)) return 1;
+        if (allocate_digits(&(*result)->imag, 1)) return 1;
+        (*result)->imag.digits[0] = 0;
+    } else {
+        double l = log(-d) / log(3.0);
+        if (double_to_t81bigint(l, &(*result)->real)) return 1;
+        if (double_to_t81bigint(M_PI / log(3.0), &(*result)->imag)) return 1;
+    }
+    return 0;
+}
+
+/* Fix: Division by Zero Handling */
+TritError tritjs_divide_big(T81BigInt* A, T81BigInt* B, T81BigInt** quotient, T81BigInt** remainder) {
+    *quotient = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    *remainder = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (!*quotient || !*remainder) return 1;
+
+    int b_zero = (B->len == 1 && B->digits[0] == 0);
+    if (b_zero) {
+        LOG_ERROR(3, "tritjs_divide_big");
+        return 3;
+    }
+
+    if (allocate_digits(*quotient, A->len)) return 1;
+    if (allocate_digits(*remainder, A->len)) return 1;
+    memcpy((*remainder)->digits, A->digits, A->len);
+    (*remainder)->len = A->len;
+
+    for (ssize_t i = A->len - 1; i >= 0; i--) {
+        if (B->digits[i] == 0) return 3; // Prevent division by zero inside loop
+    }
+    return 0;
+}
+
+int main(int argc, char* argv[]) {
+    audit_log = fopen("tritjs_audit.log", "a");
+    if (!audit_log) audit_log = stderr;
+    
+    if (argc < 2) {
+        printf("Usage: tritsys.exe -[command] [args]\n");
+        return 1;
+    }
+    
+    return 0;
+}

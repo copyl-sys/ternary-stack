@@ -1,0 +1,429 @@
+@* T81Lang Runtime Engine.
+This CWEB document implements an optimized, standalone runtime engine for T81Lang, a scripting language
+supporting base-81 arithmetic with three types: `bigint81` (arbitrary-precision integers), `float81`
+(floating-point numbers), and `frac81` (rational numbers). It features a parser and evaluator written
+in Python 3, supporting interactive scripting and arithmetic execution of base-81 expressions. All
+dependencies are self-contained, with optimizations for performance and robustness.
+
+@*1 Imports.
+We use only standard Python modules: `re` for parsing and `typing` for type hints.
+
+@c
+import re
+from typing import Any, Dict, List, Tuple, Optional
+
+@*2 Base-81 Arithmetic Types and Operations.
+Here we define the core types and their arithmetic operations, optimized for base-81.
+
+@*2.1 T81BigInt Definition.
+`T81BigInt` is an arbitrary-precision integer in base-81, stored as a list of digits (0–80) in
+little-endian order.
+
+@c
+class T81BigInt:
+    """Arbitrary-precision integer in base-81."""
+    def __init__(self, digits: List[int], sign: int = 0):
+        self.sign = sign  # 0 = positive, 1 = negative
+        self.digits = digits  # Little-endian digits (0–80)
+        self.trim()  # Remove leading zeros
+
+    def trim(self):
+        """Remove leading zeros from digits."""
+        while len(self.digits) > 1 and self.digits[-1] == 0:
+            self.digits.pop()
+        if not self.digits:
+            self.digits = [0]
+            self.sign = 0
+
+    def __str__(self) -> str:
+        """Convert to string representation."""
+        return ("-" if self.sign else "") + "".join(map(str, reversed(self.digits)))
+
+@*2.2 T81Float Definition.
+`T81Float` represents a floating-point number as `mantissa * 81^exponent`.
+
+@c
+class T81Float:
+    """Floating-point number in base-81."""
+    def __init__(self, mantissa: T81BigInt, exponent: int, sign: int = 0):
+        self.mantissa = mantissa  # Base-81 mantissa
+        self.exponent = exponent  # Exponent for base-81
+        self.sign = sign  # 0 = positive, 1 = negative
+        self.normalize()  # Adjust mantissa and exponent
+
+    def normalize(self):
+        """Normalize by removing leading/trailing zeros and adjusting exponent."""
+        mant = self.mantissa.digits
+        while len(mant) > 1 and mant[-1] == 0:
+            mant.pop()
+        leading_zeros = 0
+        for d in mant:
+            if d != 0:
+                break
+            leading_zeros += 1
+        if leading_zeros == len(mant):
+            self.mantissa = T81BigInt([0])
+            self.exponent = 0
+            self.sign = 0
+        elif leading_zeros > 0:
+            self.mantissa.digits = mant[leading_zeros:]
+            self.exponent -= leading_zeros
+            self.mantissa.trim()
+
+    def __str__(self) -> str:
+        """Format as string."""
+        return f"(mantissa) {self.mantissa}, exponent: {self.exponent}"
+
+@*2.3 T81Fraction Definition.
+`T81Fraction` represents a rational number as `numerator / denominator`.
+
+@c
+class T81Fraction:
+    """Rational number in base-81."""
+    def __init__(self, numerator: T81BigInt, denominator: T81BigInt):
+        if denominator.digits == [0]:
+            raise ValueError("Denominator cannot be zero")
+        self.numerator = numerator
+        self.denominator = denominator
+        self.reduce()  # Simplify fraction
+
+    def reduce(self):
+        """Simplify fraction using GCD."""
+        gcd = self._gcd(self.numerator, self.denominator)
+        if gcd.digits != [1]:
+            self.numerator = self._divide(self.numerator, gcd)[0]
+            self.denominator = self._divide(self.denominator, gcd)[0]
+        if self.denominator.sign:
+            self.numerator.sign ^= 1
+            self.denominator.sign = 0
+
+    def __str__(self) -> str:
+        """Format as string."""
+        return f"{self.numerator}/{self.denominator}"
+
+@*2.4 Arithmetic Operations.
+Optimized base-81 arithmetic functions for the types above.
+
+@c
+def parse_trit_string(value: str) -> T81BigInt:
+    """Parse a base-81 string into a T81BigInt."""
+    sign = 1 if value.startswith('-') else 0
+    value = value.lstrip('-')
+    digits = [int(d) for d in reversed(value) if 0 <= int(d) <= 80]
+    return T81BigInt(digits or [0], sign)
+
+def add_big(A: T81BigInt, B: T81BigInt) -> T81BigInt:
+    """Add two T81BigInts digit-by-digit."""
+    if A.sign != B.sign:
+        return subtract_big(A, T81BigInt(B.digits, not B.sign))
+    digits = []
+    carry = 0
+    max_len = max(len(A.digits), len(B.digits))
+    a_digits = A.digits + [0] * (max_len - len(A.digits))
+    b_digits = B.digits + [0] * (max_len - len(B.digits))
+    for a, b in zip(a_digits, b_digits):
+        total = a + b + carry
+        digits.append(total % 81)
+        carry = total // 81
+    if carry:
+        digits.append(carry)
+    return T81BigInt(digits, A.sign)
+
+def subtract_big(A: T81BigInt, B: T81BigInt) -> T81BigInt:
+    """Subtract B from A digit-by-digit."""
+    if A.sign != B.sign:
+        return add_big(A, T81BigInt(B.digits, not B.sign))
+    if compare_big(A, B) < 0:
+        result = subtract_big(B, A)
+        result.sign = 1
+        return result
+    digits = []
+    borrow = 0
+    max_len = max(len(A.digits), len(B.digits))
+    a_digits = A.digits + [0] * (max_len - len(A.digits))
+    b_digits = B.digits + [0] * (max_len - len(B.digits))
+    for a, b in zip(a_digits, b_digits):
+        diff = a - b - borrow
+        if diff < 0:
+            diff += 81
+            borrow = 1
+        else:
+            borrow = 0
+        digits.append(diff)
+    result = T81BigInt(digits, A.sign)
+    result.trim()
+    return result
+
+def multiply_big(A: T81BigInt, B: T81BigInt) -> T81BigInt:
+    """Multiply two T81BigInts digit-by-digit."""
+    digits = [0] * (len(A.digits) + len(B.digits))
+    for i, a in enumerate(A.digits):
+        carry = 0
+        for j, b in enumerate(B.digits):
+            temp = a * b + digits[i + j] + carry
+            digits[i + j] = temp % 81
+            carry = temp // 81
+        digits[i + len(B.digits)] += carry
+    return T81BigInt(digits, A.sign != B.sign)
+
+def divide_big(A: T81BigInt, B: T81BigInt) -> Tuple[T81BigInt, T81BigInt]:
+    """Divide A by B iteratively, returning (quotient, remainder)."""
+    if B.digits == [0]:
+        raise ValueError("Division by zero")
+    if compare_big(A, B) < 0:
+        return T81BigInt([0]), A
+    quotient_digits = []
+    remainder = T81BigInt(A.digits[:], A.sign)
+    divisor = T81BigInt(B.digits[:], 0)
+    for i in range(len(A.digits) - 1, -1, -1):
+        temp = T81BigInt(remainder.digits[i:], 0)
+        q = 0
+        while compare_big(temp, divisor) >= 0:
+            temp = subtract_big(temp, divisor)
+            q += 1
+        quotient_digits.append(q)
+        remainder.digits[i:] = temp.digits
+    quotient = T81BigInt(list(reversed(quotient_digits)), A.sign != B.sign)
+    quotient.trim()
+    remainder.trim()
+    return quotient, remainder
+
+def compare_big(A: T81BigInt, B: T81BigInt) -> int:
+    """Compare two T81BigInts: 1 if A > B, -1 if A < B, 0 if equal."""
+    if A.sign != B.sign:
+        return -1 if A.sign else 1
+    if len(A.digits) > len(B.digits):
+        return 1 if not A.sign else -1
+    if len(A.digits) < len(B.digits):
+        return -1 if not A.sign else 1
+    for a, b in zip(reversed(A.digits), reversed(B.digits)):
+        if a > b:
+            return 1 if not A.sign else -1
+        if a < b:
+            return -1 if not A.sign else 1
+    return 0
+
+def float_multiply(A: T81Float, B: T81Float) -> T81Float:
+    """Multiply two T81Floats."""
+    mantissa = multiply_big(A.mantissa, B.mantissa)
+    exponent = A.exponent + B.exponent
+    sign = A.sign != B.sign
+    return T81Float(mantissa, exponent, sign)
+
+def float_divide(A: T81Float, B: T81Float) -> T81Float:
+    """Divide A by B."""
+    quotient, _ = divide_big(A.mantissa, B.mantissa)
+    exponent = A.exponent - B.exponent
+    sign = A.sign != B.sign
+    return T81Float(quotient, exponent, sign)
+
+def T81Fraction._gcd(self, A: T81BigInt, B: T81BigInt) -> T81BigInt:
+    """Compute GCD using Euclidean algorithm."""
+    a, b = T81BigInt(A.digits[:], 0), T81BigInt(B.digits[:], 0)
+    while b.digits != [0]:
+        a, b = b, divide_big(a, b)[1]
+    return a
+
+def T81Fraction._divide(self, A: T81BigInt, B: T81BigInt) -> Tuple[T81BigInt, T81BigInt]:
+    """Wrapper for divide_big in T81Fraction."""
+    return divide_big(A, B)
+
+@*3 Runtime Environment.
+Stores variables during script execution.
+
+@c
+class RuntimeEnv:
+    """Environment for storing script variables."""
+    def __init__(self):
+        self.variables: Dict[str, Any] = {}
+
+    def set_var(self, name: str, value: Any):
+        """Store a variable."""
+        self.variables[name] = value
+
+    def get_var(self, name: str) -> Any:
+        """Retrieve a variable."""
+        return self.variables.get(name)
+
+@*4 Reticulated Parser with Optimized Expression Handling.
+Parses and evaluates T81Lang scripts with a recursive descent parser for expressions.
+
+@c
+class ReticulatedParser:
+    """Parser and evaluator for T81Lang."""
+    def __init__(self, env: RuntimeEnv):
+        self.env = env
+
+    def parse_line(self, line: str):
+        """Process a single script line."""
+        line = line.strip()
+        if line.startswith("let"):
+            self._parse_let(line)
+        elif line.startswith("print"):
+            self._parse_print(line)
+
+    def _parse_let(self, line: str):
+        """Parse a 'let' statement."""
+        match = re.match(r'let (\w+): (\w+) = "?([\d]+)"?(?:, (\d+))?', line)
+        if not match:
+            raise SyntaxError(f"Invalid let statement: {line}")
+        name, typ, val, exp = match.groups()
+        if typ == "bigint81":
+            val_obj = parse_trit_string(val)
+        elif typ == "float81":
+            mantissa = parse_trit_string(val)
+            exponent = int(exp or 0)
+            val_obj = T81Float(mantissa, exponent)
+        elif typ == "frac81":
+            num = parse_trit_string(val)
+            denom = parse_trit_string(exp or "1")
+            val_obj = T81Fraction(num, denom)
+        else:
+            raise TypeError(f"Unknown type: {typ}")
+        self.env.set_var(name, val_obj)
+
+    def _parse_print(self, line: str):
+        """Parse a 'print' statement."""
+        match = re.match(r'print\((.+)\)', line)
+        if not match:
+            raise SyntaxError(f"Invalid print statement: {line}")
+        expr = match.group(1).strip()
+        result = self._eval_expr(expr)
+        print(self._format_result(result))
+
+    def _eval_expr(self, expr: str) -> Any:
+        """Evaluate an expression with precedence."""
+        tokens = self._tokenize(expr)
+        return self._parse_expression(tokens)
+
+    def _tokenize(self, expr: str) -> List[str]:
+        """Tokenize an expression into variables and operators."""
+        tokens = []
+        current = ""
+        for char in expr:
+            if char in "+-*/()":
+                if current:
+                    tokens.append(current.strip())
+                    current = ""
+                tokens.append(char)
+            elif char.isspace():
+                if current:
+                    tokens.append(current.strip())
+                    current = ""
+            else:
+                current += char
+        if current:
+            tokens.append(current.strip())
+        return tokens
+
+    def _parse_expression(self, tokens: List[str], pos: int = 0) -> Tuple[Any, int]:
+        """Parse expression with precedence (multiplication/division before addition/subtraction)."""
+        result, pos = self._parse_term(tokens, pos)
+        while pos < len(tokens) and tokens[pos] in "+-":
+            op = tokens[pos]
+            pos += 1
+            right, new_pos = self._parse_term(tokens, pos)
+            if op == "+":
+                result = self._binary_op(result, right, "+")
+            elif op == "-":
+                result = self._binary_op(result, right, "-")
+            pos = new_pos
+        return result, pos
+
+    def _parse_term(self, tokens: List[str], pos: int) -> Tuple[Any, int]:
+        """Parse multiplication and division terms."""
+        result, pos = self._parse_factor(tokens, pos)
+        while pos < len(tokens) and tokens[pos] in "*/":
+            op = tokens[pos]
+            pos += 1
+            right, new_pos = self._parse_factor(tokens, pos)
+            if op == "*":
+                result = self._binary_op(result, right, "*")
+            elif op == "/":
+                result = self._binary_op(result, right, "/")
+            pos = new_pos
+        return result, pos
+
+    def _parse_factor(self, tokens: List[str], pos: int) -> Tuple[Any, int]:
+        """Parse a single factor (variable or parenthesized expression)."""
+        if pos >= len(tokens):
+            raise SyntaxError("Unexpected end of expression")
+        token = tokens[pos]
+        if token == "(":
+            pos += 1
+            result, pos = self._parse_expression(tokens, pos)
+            if pos >= len(tokens) or tokens[pos] != ")":
+                raise SyntaxError("Missing closing parenthesis")
+            return result, pos + 1
+        value = self.env.get_var(token)
+        if value is None:
+            raise NameError(f"Undefined variable: {token}")
+        return value, pos + 1
+
+    def _binary_op(self, A: Any, B: Any, op: str) -> Any:
+        """Perform binary operation based on types."""
+        if isinstance(A, T81BigInt) and isinstance(B, T81BigInt):
+            if op == "+": return add_big(A, B)
+            elif op == "-": return subtract_big(A, B)
+            elif op == "*": return multiply_big(A, B)
+            elif op == "/": return divide_big(A, B)[0]
+        elif isinstance(A, T81Float) and isinstance(B, T81Float):
+            if op == "*": return float_multiply(A, B)
+            elif op == "/": return float_divide(A, B)
+        elif isinstance(A, T81Fraction) and isinstance(B, T81Fraction):
+            if op == "+":
+                num = add_big(multiply_big(A.numerator, B.denominator),
+                              multiply_big(B.numerator, A.denominator))
+                denom = multiply_big(A.denominator, B.denominator)
+                return T81Fraction(num, denom)
+            elif op == "-":
+                num = subtract_big(multiply_big(A.numerator, B.denominator),
+                                  multiply_big(B.numerator, A.denominator))
+                denom = multiply_big(A.denominator, B.denominator)
+                return T81Fraction(num, denom)
+            elif op == "*":
+                return T81Fraction(multiply_big(A.numerator, B.numerator),
+                                  multiply_big(A.denominator, B.denominator))
+            elif op == "/":
+                return T81Fraction(multiply_big(A.numerator, B.denominator),
+                                  multiply_big(A.denominator, B.numerator))
+        raise TypeError(f"Unsupported operation {op} for types {type(A)}, {type(B)}")
+
+    def _format_result(self, value: Any) -> str:
+        """Format result for display."""
+        return str(value)
+
+@*5 Script Execution.
+Runs the T81Lang script.
+
+@c
+def run_script(script: str):
+    """Execute a T81Lang script."""
+    env = RuntimeEnv()
+    parser = ReticulatedParser(env)
+    for line in script.strip().split('\n'):
+        if line and not line.strip().startswith('#'):
+            parser.parse_line(line)
+
+@*6 Main Execution and Example.
+Runs a test script if executed directly.
+
+@c
+if __name__ == "__main__":
+    code = """
+    let a: bigint81 = "102"      # 102 in base-81
+    let b: bigint81 = "21"       # 21 in base-81
+    print(a + b)                 # Should print 123
+    print(a + b * b)             # Tests precedence: 102 + (21 * 21)
+
+    let f1: float81 = "102", 0   # 102 * 81^0
+    let f2: float81 = "21", 0    # 21 * 81^0
+    print(f1 * f2)               # Should print (mantissa) 2142, exponent: 0
+    print(f1 / f2)               # Should print approx. 4
+
+    let r1: frac81 = "7", 3      # 7/3 in base-81
+    let r2: frac81 = "5", 9      # 5/9 in base-81
+    print(r1 + r2)               # Should print 26/27
+    print(r1 * r2)               # Should print 35/27
+    """
+    run_script(code)

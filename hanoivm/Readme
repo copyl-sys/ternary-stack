@@ -1,0 +1,94 @@
+# HanoiVM
+
+[![CI](https://github.com/copyl-sys/hanoivm/actions/workflows/ci.yml/badge.svg)](https://github.com/copyl-sys/hanoivm/actions/workflows/ci.yml)
+
+A Ternary Virtual Machine ecosystem built for symbolic computation, recursive stack execution, and AI/GPU acceleration.
+
+## 🔧 Build Instructions
+
+HanoiVM uses Bazel for hermetic builds:
+
+```bash
+bazel build //...
+```
+
+To run tests:
+
+```bash
+bazel test //...
+```
+
+## 🧪 Run the Assembler
+
+```bash
+bazel run //:hvm_assembler -- input.asm output.hvm
+```
+
+Assembly input format:
+
+```
+PUSH 1 2 3
+PUSH 4 5 6
+ADD
+```
+
+## 🖥️ Run hvmcli (Userspace to PCIe Interface)
+
+```bash
+bazel run //:hvmcli -- 01 1 2 3
+```
+
+This sends the opcode `0x01` (PUSH) with a ternary operand split into three base-27 segments: A=1, B=2, C=3.
+
+The result of execution (if available) will be printed to the console.
+
+## 🔌 Firmware Protocol
+
+- `HVM_OPCODE_BUFFER`    → PCIe-mapped 8-bit instruction register
+- `HVM_OPERAND_BUFFER`   → 81-bit (3x27-bit) operand region
+- `HVM_CONTROL_REG`      → Set to `1` to trigger execution
+- `HVM_RESULT_BUFFER`    → Read result from this after execution
+- `HVM_STATUS_REG`       → Will be `1` when result is ready
+
+The firmware runs an infinite loop polling `HVM_CONTROL_REG`. Upon trigger, it executes the instruction via HanoiVM core logic and sets `HVM_STATUS_REG = 1`.
+
+## 🚀 Components
+
+- hvm_assembler — Converts ternary assembly to .hvm bytecode
+- hvmcli        — Userspace interface to /dev/hvm0 (PCIe control)
+- hvm_firmware  — Firmware entry point for ternary PCIe card
+- hvm_pcie_driver — Linux PCIe kernel module
+
+## 🗺️ Roadmap
+
+### Stage 1: VM Core & Stack Expansion
+- [x] Implement base opcodes (NOP, PUSH, POP, ADD)
+- [ ] Add advanced opcodes (MUL, DIV, MOD, JMP, CALL, RET)
+- [ ] Expand ternary stack memory and symbolic type support
+- [ ] Integrate ternary memory-mapped I/O (for sensors, etc.)
+
+### Stage 2: Hardware Readiness
+- [x] Firmware entry for opcode+operand memory mapping
+- [x] PCIe Linux kernel driver with BAR I/O and IOCTL
+- [ ] HDL (Verilog) FSM synthesis of HanoiVM interpreter loop
+- [ ] AXI-lite transport + PCIe testbench on dev board (ECP5/Artix)
+
+### Stage 3: AI/GPU Symbolic Accelerator
+- [x] Simulate GAIA + CUDA ternary macro acceleration
+- [ ] Implement symbolic processing queue in Axion
+- [ ] Ternary intent dispatch logic to GPU (OpenCL/CUDA)
+- [ ] Feedback refinement from symbolic error models
+
+### Stage 4: Toolchain & Distribution
+- [x] Bazel build with sandboxing and CI integration
+- [x] GitHub Actions with test/validate/artifact steps
+- [ ] GUI tracer/visualizer for .hvm stack activity
+- [ ] Package and distribute as SDK via Axion (e.g. hvm-pkg)
+
+## 📦 Artifacts
+
+Generated .hvm bytecode is uploaded via CI in artifacts named hvm-output.
+
+## 📚 Licensing
+
+MIT License. Copyright (c) 2025

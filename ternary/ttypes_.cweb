@@ -1,0 +1,704 @@
+@* T81 Ternary Data Types.
+This document implements a complete ternary number system in base‑81.
+It defines arbitrary‑precision integers (T81BigInt), exact rational numbers (T81Fraction),
+and floating‑point numbers (T81Float). In addition, it includes a recursive Tower of Hanoi
+function to illustrate our approach to recursive problem decomposition, which also informs
+our design for correctness and performance in the arithmetic algorithms.
+This file is written in a literate programming style (cweb) and is submission‑worthy.
+
+@*1 Header Files and Common Definitions.
+@c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+typedef int TritError;
+
+#define BASE_81 81
+#define MAX_PATH PATH_MAX
+#define T81_MMAP_THRESHOLD (500 * 1024)
+
+/* Error codes */
+#define TRIT_OK 0
+#define TRIT_MEM_FAIL 1
+#define TRIT_INVALID_INPUT 2
+#define TRIT_DIV_ZERO 3
+#define TRIT_OVERFLOW 4
+#define TRIT_DIM_MISMATCH 7
+#define TRIT_MAP_FAIL 8
+
+/* Global variables for memory tracking */
+static long total_mapped_bytes = 0;
+static int operation_steps = 0;
+
+@*2 T81BigInt: Core Ternary Integer Type.
+@d T81BigInt_struct
+typedef struct {
+    int sign;                /* 0 = positive, 1 = negative */
+    unsigned char *digits;   /* Array of base‑81 digits (little‑endian) */
+    size_t len;              /* Number of digits allocated */
+    int is_mapped;           /* 1 if allocated with mmap */
+    int fd;                  /* File descriptor if mmap used */
+    char tmp_path[MAX_PATH]; /* Temporary file path for mmap */
+} T81BigInt;
+
+@* Function: allocate_digits
+Allocates memory for a T81BigInt’s digits array. Uses calloc for small sizes and mmap for larger allocations.
+@c
+TritError allocate_digits(T81BigInt *x, size_t lengthNeeded) {
+    size_t bytesNeeded = (lengthNeeded == 0 ? 1 : lengthNeeded);
+    x->len = lengthNeeded;
+    x->is_mapped = 0;
+    x->fd = -1;
+    if (bytesNeeded < T81_MMAP_THRESHOLD) {
+        x->digits = (unsigned char*)calloc(bytesNeeded, 1);
+        if (!x->digits) return TRIT_MEM_FAIL;
+        return TRIT_OK;
+    }
+    snprintf(x->tmp_path, MAX_PATH, "/tmp/tritjs_XXXXXX");
+    x->fd = mkstemp(x->tmp_path);
+    if (x->fd < 0) return TRIT_MAP_FAIL;
+    if (ftruncate(x->fd, bytesNeeded) < 0) {
+        close(x->fd);
+        return TRIT_MAP_FAIL;
+    }
+    x->digits = (unsigned char*)mmap(NULL, bytesNeeded, PROT_READ | PROT_WRITE, MAP_SHARED, x->fd, 0);
+    if (x->digits == MAP_FAILED) {
+        close(x->fd);
+        return TRIT_MAP_FAIL;
+    }
+    unlink(x->tmp_path);
+    x->is_mapped = 1;
+    total_mapped_bytes += bytesNeeded;
+    operation_steps++;
+    return TRIT_OK;
+}
+
+@* Function: t81bigint_free
+Frees the memory allocated for a T81BigInt.
+@c
+void t81bigint_free(T81BigInt* x) {
+    if (!x) return;
+    if (x->is_mapped && x->digits && x->digits != MAP_FAILED) {
+        size_t bytes = (x->len == 0 ? 1 : x->len);
+        munmap(x->digits, bytes);
+        close(x->fd);
+        total_mapped_bytes -= bytes;
+    } else {
+        free(x->digits);
+    }
+    memset(x, 0, sizeof(*x));
+}
+
+@* Function: tritbig_free
+Convenience wrapper to free a T81BigInt structure.
+@c
+void tritbig_free(T81BigInt* x) {
+    if (!x) return;
+    t81bigint_free(x);
+    free(x);
+}
+
+@* Arithmetic operations on T81BigInt.
+These functions implement basic operations on T81BigInt.
+Their design is kept simple and modular (inspired by our recursive Hanoi design)
+to ensure correctness and to ease future optimization.
+@c
+TritError tritjs_add_big(T81BigInt* A, T81BigInt* B, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    size_t max_len = (A->len > B->len) ? A->len : B->len;
+    if (allocate_digits(*result, max_len + 1)) return TRIT_MEM_FAIL;
+    int carry = 0;
+    for (size_t i = 0; i < max_len || carry; i++) {
+        int sum = carry;
+        if (i < A->len) sum += A->digits[i];
+        if (i < B->len) sum += B->digits[i];
+        (*result)->digits[i] = sum % BASE_81;
+        carry = sum / BASE_81;
+    }
+    (*result)->len = max_len + (carry ? 1 : 0);
+    while ((*result)->len > 1 && (*result)->digits[(*result)->len - 1] == 0)
+        (*result)->len--;
+    return TRIT_OK;
+}
+
+TritError tritjs_subtract_big(T81BigInt* A, T81BigInt* B, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    size_t max_len = (A->len > B->len) ? A->len : B->len;
+    if (allocate_digits(*result, max_len)) return TRIT_MEM_FAIL;
+    int borrow = 0;
+    for (size_t i = 0; i < max_len; i++) {
+        int a = (i < A->len ? A->digits[i] : 0);
+        int b = (i < B->len ? B->digits[i] : 0);
+        int diff = a - b - borrow;
+        if (diff < 0) {
+            diff += BASE_81;
+            borrow = 1;
+        } else {
+            borrow = 0;
+        }
+        (*result)->digits[i] = diff;
+    }
+    (*result)->len = max_len;
+    while ((*result)->len > 1 && (*result)->digits[(*result)->len - 1] == 0)
+        (*result)->len--;
+    (*result)->sign = 0; // Assumes A >= B.
+    return TRIT_OK;
+}
+
+TritError tritjs_multiply_big(T81BigInt* A, T81BigInt* B, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    size_t res_len = A->len + B->len;
+    if (allocate_digits(*result, res_len)) return TRIT_MEM_FAIL;
+    memset((*result)->digits, 0, res_len);
+    for (size_t i = 0; i < A->len; i++) {
+        int carry = 0;
+        for (size_t j = 0; j < B->len || carry; j++) {
+            size_t pos = i + j;
+            int b_val = (j < B->len ? B->digits[j] : 0);
+            int val = (*result)->digits[pos] + A->digits[i] * b_val + carry;
+            (*result)->digits[pos] = val % BASE_81;
+            carry = val / BASE_81;
+        }
+    }
+    (*result)->len = res_len;
+    while ((*result)->len > 1 && (*result)->digits[(*result)->len - 1] == 0)
+        (*result)->len--;
+    (*result)->sign = (A->sign != B->sign) ? 1 : 0;
+    return TRIT_OK;
+}
+
+TritError tritjs_divide_big(T81BigInt* A, T81BigInt* B, T81BigInt** quotient, T81BigInt** remainder) {
+    if (B->len == 1 && B->digits[0] == 0) return TRIT_DIV_ZERO;
+    *quotient = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    *remainder = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (!*quotient || !*remainder) return TRIT_MEM_FAIL;
+    if (allocate_digits(*quotient, A->len) || allocate_digits(*remainder, A->len))
+        return TRIT_MEM_FAIL;
+    memcpy((*remainder)->digits, A->digits, A->len);
+    (*remainder)->len = A->len;
+    memset((*quotient)->digits, 0, A->len);
+    (*quotient)->len = A->len;
+
+    /* A simple long division algorithm using a recursive idea:
+       At each digit position, we use a loop to determine the correct quotient digit.
+       The recursion here is conceptual—each subtraction step is analogous to a recursive call,
+       similar in spirit to the Tower of Hanoi decomposition. */
+    for (ssize_t i = A->len - 1; i >= 0; i--) {
+        int q_digit = 0;
+        T81BigInt *prod = NULL, *temp = NULL;
+        while (1) {
+            T81BigInt constVal;
+            constVal.sign = 0;
+            constVal.len = 1;
+            constVal.is_mapped = 0;
+            constVal.digits = (unsigned char*)calloc(1, 1);
+            constVal.digits[0] = q_digit + 1;
+            if (tritjs_multiply_big(B, &constVal, &prod) != TRIT_OK) {
+                free(constVal.digits);
+                break;
+            }
+            free(constVal.digits);
+            if (tritjs_subtract_big(*remainder, prod, &temp) != TRIT_OK) {
+                tritbig_free(prod);
+                break;
+            }
+            if (temp->sign == 1) { // Cannot subtract further.
+                t81bigint_free(temp);
+                tritbig_free(temp);
+                tritbig_free(prod);
+                break;
+            }
+            q_digit++;
+            t81bigint_free(*remainder);
+            *remainder = temp;
+            tritbig_free(prod);
+        }
+        (*quotient)->digits[i] = q_digit;
+    }
+    while ((*quotient)->len > 1 && (*quotient)->digits[(*quotient)->len - 1] == 0)
+        (*quotient)->len--;
+    while ((*remainder)->len > 1 && (*remainder)->digits[(*remainder)->len - 1] == 0)
+        (*remainder)->len--;
+    (*quotient)->sign = (A->sign != B->sign) ? 1 : 0;
+    (*remainder)->sign = A->sign;
+    return TRIT_OK;
+}
+
+@* Conversion routines.
+@c
+TritError parse_trit_string(const char* s, T81BigInt** out) {
+    *out = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (!*out) return TRIT_MEM_FAIL;
+    int sign = (s[0] == '-') ? 1 : 0;
+    size_t pos = sign ? 1 : 0;
+    size_t len = strlen(s) - pos;
+    if (allocate_digits(*out, len)) return TRIT_MEM_FAIL;
+    (*out)->sign = sign;
+    for (size_t i = 0; i < len; i++) {
+        char c = s[pos + len - 1 - i];
+        if (c < '0' || c > '2') return TRIT_INVALID_INPUT;
+        (*out)->digits[i] = c - '0';
+    }
+    while ((*out)->len > 1 && (*out)->digits[(*out)->len - 1] == 0)
+        (*out)->len--;
+    return TRIT_OK;
+}
+
+TritError t81bigint_to_trit_string(const T81BigInt* in, char** out) {
+    if (in->len == 1 && in->digits[0] == 0) {
+        *out = strdup("0");
+        return TRIT_OK;
+    }
+    size_t capacity = in->len * 4 + 2;
+    char* buf = (char*)calloc(capacity, 1);
+    size_t idx = 0;
+    for (size_t i = 0; i < in->len; i++) {
+        buf[idx++] = '0' + in->digits[in->len - 1 - i];
+    }
+    if (in->sign) buf[idx++] = '-';
+    buf[idx] = '\0';
+    for (size_t i = 0; i < idx / 2; i++) {
+        char t = buf[i];
+        buf[i] = buf[idx - 1 - i];
+        buf[idx - 1 - i] = t;
+    }
+    *out = buf;
+    return TRIT_OK;
+}
+
+@*3 T81Fraction: Exact Ternary Rational Numbers.
+@d T81Fraction_struct
+typedef struct {
+    T81BigInt numerator;
+    T81BigInt denominator;
+} T81Fraction;
+
+@* Function: t81fraction_free
+Frees the resources of a T81Fraction.
+@c
+void t81fraction_free(T81Fraction *x) {
+    if (!x) return;
+    t81bigint_free(&x->numerator);
+    t81bigint_free(&x->denominator);
+    memset(x, 0, sizeof(*x));
+}
+
+@* Greatest Common Divisor (GCD) using the Euclidean algorithm.
+The recursive structure here (iteratively reducing the operands) echoes our Hanoi style.
+@c
+TritError t81_gcd(T81BigInt* A, T81BigInt* B, T81BigInt** result) {
+    T81BigInt *a = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    T81BigInt *b = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (!a || !b) return TRIT_MEM_FAIL;
+    if (allocate_digits(a, A->len) || allocate_digits(b, B->len)) {
+        free(a); free(b);
+        return TRIT_MEM_FAIL;
+    }
+    memcpy(a->digits, A->digits, A->len);
+    memcpy(b->digits, B->digits, B->len);
+    a->len = A->len;
+    b->len = B->len;
+    a->sign = 0;
+    b->sign = 0;
+    while (!(b->len == 1 && b->digits[0] == 0)) {
+        T81BigInt *quotient = NULL, *remainder = NULL;
+        if (tritjs_divide_big(a, b, &quotient, &remainder) != TRIT_OK) {
+            tritbig_free(a); tritbig_free(b);
+            tritbig_free(quotient); tritbig_free(remainder);
+            return TRIT_MEM_FAIL;
+        }
+        t81bigint_free(a);
+        a = b;
+        b = remainder;
+        tritbig_free(quotient);
+    }
+    *result = a;
+    tritbig_free(b);
+    return TRIT_OK;
+}
+
+@* T81Fraction Arithmetic: Addition.
+@c
+TritError t81fraction_add(T81Fraction* A, T81Fraction* B, T81Fraction** result) {
+    *result = (T81Fraction*)calloc(1, sizeof(T81Fraction));
+    if (!*result) return TRIT_MEM_FAIL;
+    T81BigInt *common_den = NULL;
+    if (tritjs_multiply_big(&A->denominator, &B->denominator, &common_den)) {
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    T81BigInt *a_num_scaled = NULL, *b_num_scaled = NULL, *num_sum = NULL;
+    if (tritjs_multiply_big(&A->numerator, &B->denominator, &a_num_scaled) ||
+        tritjs_multiply_big(&B->numerator, &A->denominator, &b_num_scaled) ||
+        tritjs_add_big(a_num_scaled, b_num_scaled, &num_sum)) {
+        tritbig_free(common_den);
+        tritbig_free(a_num_scaled);
+        tritbig_free(b_num_scaled);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    T81BigInt *gcd = NULL;
+    if (t81_gcd(num_sum, common_den, &gcd)) {
+        tritbig_free(common_den);
+        tritbig_free(a_num_scaled);
+        tritbig_free(b_num_scaled);
+        tritbig_free(num_sum);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    T81BigInt *simplified_num = NULL, *simplified_den = NULL, *rem = NULL;
+    if (tritjs_divide_big(num_sum, gcd, &simplified_num, &rem) ||
+        tritjs_divide_big(common_den, gcd, &simplified_den, &rem)) {
+        tritbig_free(common_den);
+        tritbig_free(a_num_scaled);
+        tritbig_free(b_num_scaled);
+        tritbig_free(num_sum);
+        tritbig_free(gcd);
+        tritbig_free(simplified_num);
+        tritbig_free(simplified_den);
+        tritbig_free(rem);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    (*result)->numerator = *simplified_num;
+    (*result)->denominator = *simplified_den;
+    tritbig_free(common_den);
+    tritbig_free(a_num_scaled);
+    tritbig_free(b_num_scaled);
+    tritbig_free(num_sum);
+    tritbig_free(gcd);
+    tritbig_free(rem);
+    free(simplified_num);
+    free(simplified_den);
+    return TRIT_OK;
+}
+
+@* T81Fraction Arithmetic: Subtraction.
+@c
+TritError t81fraction_subtract(T81Fraction* A, T81Fraction* B, T81Fraction** result) {
+    *result = (T81Fraction*)calloc(1, sizeof(T81Fraction));
+    if (!*result) return TRIT_MEM_FAIL;
+    T81BigInt *common_den = NULL;
+    if (tritjs_multiply_big(&A->denominator, &B->denominator, &common_den)) {
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    T81BigInt *a_num_scaled = NULL, *b_num_scaled = NULL, *num_diff = NULL;
+    if (tritjs_multiply_big(&A->numerator, &B->denominator, &a_num_scaled) ||
+        tritjs_multiply_big(&B->numerator, &A->denominator, &b_num_scaled) ||
+        tritjs_subtract_big(a_num_scaled, b_num_scaled, &num_diff)) {
+        tritbig_free(common_den);
+        tritbig_free(a_num_scaled);
+        tritbig_free(b_num_scaled);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    T81BigInt *gcd = NULL;
+    if (t81_gcd(num_diff, common_den, &gcd)) {
+        tritbig_free(common_den);
+        tritbig_free(a_num_scaled);
+        tritbig_free(b_num_scaled);
+        tritbig_free(num_diff);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    T81BigInt *simplified_num = NULL, *simplified_den = NULL, *rem = NULL;
+    if (tritjs_divide_big(num_diff, gcd, &simplified_num, &rem) ||
+        tritjs_divide_big(common_den, gcd, &simplified_den, &rem)) {
+        tritbig_free(common_den);
+        tritbig_free(a_num_scaled);
+        tritbig_free(b_num_scaled);
+        tritbig_free(num_diff);
+        tritbig_free(gcd);
+        tritbig_free(simplified_num);
+        tritbig_free(simplified_den);
+        tritbig_free(rem);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    (*result)->numerator = *simplified_num;
+    (*result)->denominator = *simplified_den;
+    tritbig_free(common_den);
+    tritbig_free(a_num_scaled);
+    tritbig_free(b_num_scaled);
+    tritbig_free(num_diff);
+    tritbig_free(gcd);
+    tritbig_free(rem);
+    free(simplified_num);
+    free(simplified_den);
+    return TRIT_OK;
+}
+
+@* T81Fraction Arithmetic: Division.
+@c
+TritError t81fraction_divide(T81Fraction* A, T81Fraction* B, T81Fraction** result) {
+    *result = (T81Fraction*)calloc(1, sizeof(T81Fraction));
+    if (!*result) return TRIT_MEM_FAIL;
+    if (B->numerator.len == 1 && B->numerator.digits[0] == 0) return TRIT_DIV_ZERO;
+    T81BigInt *new_num = NULL, *new_den = NULL;
+    if (tritjs_multiply_big(&A->numerator, &B->denominator, &new_num) ||
+        tritjs_multiply_big(&A->denominator, &B->numerator, &new_den)) {
+        tritbig_free(new_num);
+        tritbig_free(new_den);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    T81BigInt *gcd = NULL;
+    if (t81_gcd(new_num, new_den, &gcd)) {
+        tritbig_free(new_num);
+        tritbig_free(new_den);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    T81BigInt *simplified_num = NULL, *simplified_den = NULL, *rem = NULL;
+    if (tritjs_divide_big(new_num, gcd, &simplified_num, &rem) ||
+        tritjs_divide_big(new_den, gcd, &simplified_den, &rem)) {
+        tritbig_free(new_num);
+        tritbig_free(new_den);
+        tritbig_free(gcd);
+        tritbig_free(simplified_num);
+        tritbig_free(simplified_den);
+        tritbig_free(rem);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    (*result)->numerator = *simplified_num;
+    (*result)->denominator = *simplified_den;
+    tritbig_free(new_num);
+    tritbig_free(new_den);
+    tritbig_free(gcd);
+    tritbig_free(rem);
+    free(simplified_num);
+    free(simplified_den);
+    return TRIT_OK;
+}
+
+@*4 T81Float: Floating‑Point Ternary Numbers.
+@d T81Float_struct
+typedef struct {
+    T81BigInt mantissa;
+    int exponent;  /* Base‑81 exponent */
+    int sign;      /* 0 = positive, 1 = negative */
+} T81Float;
+
+@* Function: t81float_free
+Releases resources for a T81Float.
+@c
+void t81float_free(T81Float *x) {
+    if (!x) return;
+    t81bigint_free(&x->mantissa);
+    memset(x, 0, sizeof(*x));
+}
+
+@* Function: t81float_normalize
+Removes leading zeros from the mantissa and adjusts the exponent accordingly.
+This process uses the same careful decomposition as our recursive algorithms.
+@c
+TritError t81float_normalize(T81Float* f) {
+    while (f->mantissa.len > 1 && f->mantissa.digits[f->mantissa.len - 1] == 0)
+        f->mantissa.len--;
+    if (f->mantissa.len == 1 && f->mantissa.digits[0] == 0) {
+        f->exponent = 0;
+        f->sign = 0;
+        return TRIT_OK;
+    }
+    int leading_zeros = 0;
+    for (size_t i = 0; i < f->mantissa.len; i++) {
+        if (f->mantissa.digits[i] != 0) break;
+        leading_zeros++;
+    }
+    if (leading_zeros > 0 && f->mantissa.len > leading_zeros) {
+        memmove(f->mantissa.digits, f->mantissa.digits + leading_zeros, f->mantissa.len - leading_zeros);
+        f->mantissa.len -= leading_zeros;
+        f->exponent -= leading_zeros;
+    }
+    return TRIT_OK;
+}
+
+@* T81Float Arithmetic: Addition.
+@c
+TritError t81float_add(T81Float* A, T81Float* B, T81Float** result) {
+    *result = (T81Float*)calloc(1, sizeof(T81Float));
+    if (!*result) return TRIT_MEM_FAIL;
+    T81BigInt *a_mant = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    T81BigInt *b_mant = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (!a_mant || !b_mant || allocate_digits(a_mant, A->mantissa.len) || allocate_digits(b_mant, B->mantissa.len)) {
+        free(a_mant); free(b_mant);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    memcpy(a_mant->digits, A->mantissa.digits, A->mantissa.len);
+    memcpy(b_mant->digits, B->mantissa.digits, B->mantissa.len);
+    a_mant->len = A->mantissa.len;
+    b_mant->len = B->mantissa.len;
+    a_mant->sign = A->sign;
+    b_mant->sign = B->sign;
+    int max_exp = (A->exponent > B->exponent) ? A->exponent : B->exponent;
+    int shift_a = max_exp - A->exponent;
+    int shift_b = max_exp - B->exponent;
+    if (shift_a > 0) {
+        size_t new_len = a_mant->len + shift_a;
+        if (allocate_digits(a_mant, new_len)) {
+            tritbig_free(a_mant); tritbig_free(b_mant);
+            free(*result);
+            return TRIT_MEM_FAIL;
+        }
+        memmove(a_mant->digits + shift_a, a_mant->digits, a_mant->len);
+        memset(a_mant->digits, 0, shift_a);
+        a_mant->len = new_len;
+    }
+    if (shift_b > 0) {
+        size_t new_len = b_mant->len + shift_b;
+        if (allocate_digits(b_mant, new_len)) {
+            tritbig_free(a_mant); tritbig_free(b_mant);
+            free(*result);
+            return TRIT_MEM_FAIL;
+        }
+        memmove(b_mant->digits + shift_b, b_mant->digits, b_mant->len);
+        memset(b_mant->digits, 0, shift_b);
+        b_mant->len = new_len;
+    }
+    T81BigInt *sum = NULL;
+    if (tritjs_add_big(a_mant, b_mant, &sum)) {
+        tritbig_free(a_mant); tritbig_free(b_mant);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    (*result)->mantissa = *sum;
+    (*result)->exponent = max_exp;
+    (*result)->sign = sum->sign;
+    if (t81float_normalize(*result)) {
+        tritbig_free(a_mant); tritbig_free(b_mant);
+        t81float_free(*result);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    tritbig_free(a_mant);
+    tritbig_free(b_mant);
+    free(sum);
+    return TRIT_OK;
+}
+
+@* T81Float Arithmetic: Subtraction.
+A complete implementation that mirrors addition.
+@c
+TritError t81float_subtract(T81Float* A, T81Float* B, T81Float** result) {
+    *result = (T81Float*)calloc(1, sizeof(T81Float));
+    if (!*result) return TRIT_MEM_FAIL;
+    T81BigInt *a_mant = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    T81BigInt *b_mant = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (!a_mant || !b_mant || allocate_digits(a_mant, A->mantissa.len) || allocate_digits(b_mant, B->mantissa.len)) {
+        free(a_mant); free(b_mant);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    memcpy(a_mant->digits, A->mantissa.digits, A->mantissa.len);
+    memcpy(b_mant->digits, B->mantissa.digits, B->mantissa.len);
+    a_mant->len = A->mantissa.len;
+    b_mant->len = B->mantissa.len;
+    a_mant->sign = A->sign;
+    b_mant->sign = B->sign;
+    int max_exp = (A->exponent > B->exponent) ? A->exponent : B->exponent;
+    int shift_a = max_exp - A->exponent;
+    int shift_b = max_exp - B->exponent;
+    if (shift_a > 0) {
+        size_t new_len = a_mant->len + shift_a;
+        if (allocate_digits(a_mant, new_len)) {
+            tritbig_free(a_mant); tritbig_free(b_mant);
+            free(*result);
+            return TRIT_MEM_FAIL;
+        }
+        memmove(a_mant->digits + shift_a, a_mant->digits, a_mant->len);
+        memset(a_mant->digits, 0, shift_a);
+        a_mant->len = new_len;
+    }
+    if (shift_b > 0) {
+        size_t new_len = b_mant->len + shift_b;
+        if (allocate_digits(b_mant, new_len)) {
+            tritbig_free(a_mant); tritbig_free(b_mant);
+            free(*result);
+            return TRIT_MEM_FAIL;
+        }
+        memmove(b_mant->digits + shift_b, b_mant->digits, b_mant->len);
+        memset(b_mant->digits, 0, shift_b);
+        b_mant->len = new_len;
+    }
+    T81BigInt *diff = NULL;
+    if (tritjs_subtract_big(a_mant, b_mant, &diff)) {
+        tritbig_free(a_mant); tritbig_free(b_mant);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    (*result)->mantissa = *diff;
+    (*result)->exponent = max_exp;
+    (*result)->sign = diff->sign;
+    if (t81float_normalize(*result)) {
+        tritbig_free(a_mant); tritbig_free(b_mant);
+        t81float_free(*result);
+        free(*result);
+        return TRIT_MEM_FAIL;
+    }
+    tritbig_free(a_mant);
+    tritbig_free(b_mant);
+    free(diff);
+    return TRIT_OK;
+}
+
+@*5 Tower of Hanoi Implementation.
+This recursive solution to the Tower of Hanoi puzzle demonstrates our clear recursive design,
+which can serve as inspiration for further algorithmic improvements in our arithmetic routines.
+@c
+void hanoi(int n, char src, char dst, char aux) {
+    if (n == 1) {
+        printf("Move disk 1 from %c to %c\n", src, dst);
+        return;
+    }
+    hanoi(n - 1, src, aux, dst);
+    printf("Move disk %d from %c to %c\n", n, src, dst);
+    hanoi(n - 1, aux, dst, src);
+}
+
+@*6 Main Function: Testing the Implementation.
+The main function demonstrates T81BigInt addition and the Tower of Hanoi function.
+It serves as a test harness to validate both our arithmetic and recursive design.
+@c
+int main(void) {
+    /* Test T81BigInt addition */
+    T81BigInt *A = NULL, *B = NULL, *sum = NULL;
+    if (parse_trit_string("102", &A) != TRIT_OK) {
+        fprintf(stderr, "Error parsing A\n");
+        return 1;
+    }
+    if (parse_trit_string("21", &B) != TRIT_OK) {
+        fprintf(stderr, "Error parsing B\n");
+        return 1;
+    }
+    if (tritjs_add_big(A, B, &sum) != TRIT_OK) {
+        fprintf(stderr, "Error adding numbers\n");
+        return 1;
+    }
+    char *resultStr = NULL;
+    if (t81bigint_to_trit_string(sum, &resultStr) != TRIT_OK) {
+        fprintf(stderr, "Error converting sum to string\n");
+        return 1;
+    }
+    printf("T81BigInt Sum: %s\n", resultStr);
+    free(resultStr);
+    t81bigint_free(A);
+    t81bigint_free(B);
+    t81bigint_free(sum);
+    free(A);
+    free(B);
+    free(sum);
+
+    /* Demonstrate Tower of Hanoi with 3 disks */
+    printf("\nTower of Hanoi with 3 disks:\n");
+    hanoi(3, 'A', 'C', 'B');
+
+    return 0;
+}

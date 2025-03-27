@@ -1,0 +1,138 @@
+@* Cohesive Adapter for Arbitrary Numeric Base Conversion with Recursive T81Lang Datatype Identification.
+
+This enhanced adapter provides functions for numeric base conversions, incorporating recursive datatype identification specifically for T81Lang data types (`T81BigInt`, `T81Float`, `T81Fraction`). Robust error checking, overflow prevention, and ecosystem-wide reporting ensure smooth integration with HanoiVM and Axion ecosystems.
+
+@c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <limits.h>
+
+@ Define maximum supported base.
+@d MAX_BASE 1000000
+
+@ Enumeration to represent numeric datatype.
+typedef enum {
+    TYPE_VALID,
+    TYPE_UNKNOWN,
+    TYPE_T81_BIGINT,
+    TYPE_T81_FLOAT,
+    TYPE_T81_FRACTION
+} NumericType;
+
+@ Enumeration for comprehensive error codes.
+typedef enum {
+    ERR_NONE,
+    ERR_INVALID_BASE,
+    ERR_UNKNOWN_DATATYPE,
+    ERR_CONVERSION_FAILURE,
+    ERR_OVERFLOW
+} ErrorCode;
+
+@ Structure for consistent error reporting.
+typedef struct {
+    ErrorCode code;
+    const char *message;
+} ErrorReport;
+
+@ Consistent error reporting.
+void report_error(ErrorReport error) {
+    fprintf(stderr, "Error [%d]: %s\n", error.code, error.message);
+}
+
+@ Validate base.
+bool is_valid_base(uint32_t base) {
+    return base >= 2 && base <= MAX_BASE;
+}
+
+@ Recursive function to identify the numeric base of input.
+uint32_t recursively_identify_base(const char *num_str, uint32_t current_base) {
+    ErrorReport error;
+    parse_number(num_str, current_base, &error);
+    if (error.code == ERR_NONE) return current_base;
+    if (current_base >= MAX_BASE) return 0;
+    return recursively_identify_base(num_str, current_base + 1);
+}
+
+@ Recursive identification of datatype based on T81Lang patterns.
+NumericType identify_datatype_recursive(const char *num_str, uint32_t base) {
+    if (strchr(num_str, '.') != NULL) return TYPE_T81_FLOAT;
+    if (strchr(num_str, '/') != NULL) return TYPE_T81_FRACTION;
+    size_t len = strlen(num_str);
+    for (size_t i = 0; i < len; i++) {
+        char ch = num_str[i];
+        if (!((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')))
+            return TYPE_UNKNOWN;
+    }
+    if (base == 81) return TYPE_T81_BIGINT;
+    return TYPE_VALID;
+}
+
+@ Parse numeric string with error and overflow checks.
+uint128_t parse_number(const char *num_str, uint32_t base, ErrorReport *error) {
+    uint128_t value = 0;
+    size_t len = strlen(num_str);
+    for (size_t i = 0; i < len; i++) {
+        char ch = num_str[i];
+        uint32_t digit;
+        if (ch >= '0' && ch <= '9') digit = ch - '0';
+        else if (ch >= 'A' && ch <= 'Z') digit = ch - 'A' + 10;
+        else if (ch >= 'a' && ch <= 'z') digit = ch - 'a' + 36;
+        else {
+            *error = (ErrorReport){ERR_UNKNOWN_DATATYPE, "Unknown datatype detected."};
+            return 0;
+        }
+        if (digit >= base) {
+            *error = (ErrorReport){ERR_UNKNOWN_DATATYPE, "Digit exceeds base."};
+            return 0;
+        }
+        if (value > (UINT128_MAX - digit) / base) {
+            *error = (ErrorReport){ERR_OVERFLOW, "Numeric overflow detected."};
+            return 0;
+        }
+        value = value * base + digit;
+    }
+    *error = (ErrorReport){ERR_NONE, "No error."};
+    return value;
+}
+
+@ Convert number to base with overflow protection.
+void number_to_base(uint128_t num, uint32_t base, char *buffer, size_t buffer_size) {
+    char digits[128];
+    int index = 0;
+    if (num == 0) {
+        strncpy(buffer, "0", buffer_size);
+        return;
+    }
+    while (num > 0 && index < (int)sizeof(digits)) {
+        uint32_t digit = num % base;
+        num /= base;
+        digits[index++] = (digit < 10) ? ('0' + digit) : (digit < 36) ? ('A' + digit - 10) : ('a' + digit - 36);
+    }
+    if (index >= (int)buffer_size) {
+        report_error((ErrorReport){ERR_OVERFLOW, "Output buffer overflow."});
+        buffer[0] = '\0';
+        return;
+    }
+    for (int i = 0; i < index; i++) buffer[i] = digits[index - i - 1];
+    buffer[index] = '\0';
+}
+
+@ Unified function for recursive base identification and conversion.
+bool convert_base_recursive(const char *input, uint32_t to_base, char *output, size_t output_size) {
+    uint32_t identified_base = recursively_identify_base(input, 2);
+    if (identified_base == 0) {
+        report_error((ErrorReport){ERR_INVALID_BASE, "Unable to identify numeric base."});
+        return false;
+    }
+    ErrorReport error;
+    uint128_t numeric_value = parse_number(input, identified_base, &error);
+    if (error.code != ERR_NONE) {
+        report_error(error);
+        return false;
+    }
+    number_to_base(numeric_value, to_base, output, output_size);
+    return true;
+}

@@ -1,0 +1,435 @@
+@* TritJS-CISA: A Ternary Calculator with AI-Driven Stats, Scripting, Save/Load, and Certification Testing.
+This document defines \.{TritJS-CISA}, an advanced ternary (base-3) scientific calculator
+designed for the Cybersecurity and Infrastructure Security Agency (CISA), surpassing the
+TI-82 with ternary statistics (mean, mode, median) optimized via AI-driven sorting, basic
+scripting, save/load capabilities, and now an integrated ASCII-based certification test
+for ternary mathematics education. Built in C and shipped as a \.{.cweb} literate program,
+it emulates ternary computation on binary hardware, optimized for cybersecurity tasks,
+educational use, and self-paced learning certification. Enhancements include:
+
+- **Memory-Mapped Files**: \.{mmap} for trit arrays, visualized with stats.
+- **Security Hardening**: Audit logging to \.{/var/log/tritjs_cisa.log} and memory safety.
+- **Complex Arithmetic**: \.{TritFloat}, \.{TritBigInt}, \.{TritComplex}.
+- **Scientific Functions**: Exponentiation, roots, logarithms, trigonometry, factorials.
+- **Interactive CLI**: History, variables (A-Z), AI-optimized stats, scripting, save/load, and testing.
+- **MIME Type**: \.{application/x-tritjs-cisa} for \.{.trit} files.
+- **Certification Testing**: Built-in multiple-choice quizzes for ternary math education, with scoring and progress tracking.
+
+This version, dated March 01, 2025, adds persistent storage and certification testing.
+
+@*1 Usage and Documentation.
+Compile and run:
+- \.{cweave tritjs_cisa.cweb} → \.{tritjs_cisa.tex}.
+- \.{ctangle tritjs_cisa.cweb} → \.{tritjs_cisa.c}.
+- \.{gcc -o tritjs_cisa tritjs_cisa.c -lm}.
+- \.{./tritjs_cisa}.
+
+Commands: \.{<operation> <arg1> [arg2]}, e.g., \.{add 12 2}, \.{A=12}, \.{save work.trit}.
+Operations:
+- Arithmetic: \.{add}, \.{sub}, \.{mul}, \.{div}, \.{pow}, \.{fact}
+- Scientific: \.{sqrt}, \.{log3}, \.{sin}, \.{cos}, \.{tan}, \.{pi}
+- Stats: \.{stats [quick|merge]} (mean, mode, median; auto-selects if unspecified)
+- Scripting: \.{PROG <name> { <cmds> }}, \.{RUN <name>}
+- Storage: \.{save <file>}, \.{load <file>} (uses \.{application/x-tritjs-cisa} MIME type)
+- Testing: 
+  - \.{TEST <week>} (start test for a specific week, 1-8)
+  - \.{CHECK <qnum> <answer>} (submit answer for question number)
+  - \.{SCORE} (display current test score and progress)
+- General: \.{help}, \.{quit}, \.{recall <n>}, \.{<var>=<value>}, \.{clear}
+
+Inputs are base-3 (trits: 0, 1, 2). Save/load uses \.{.trit} files for state and test progress.
+
+@*1 Implementation.
+@c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <time.h>
+
+#define TRIT_MAX 3
+#define MAX_MMAP_SIZE (1024 * 1024)
+#define MAX_DISPLAY_WIDTH 50
+#define MAX_HISTORY 10
+#define MAX_VAR_NAME 2
+#define MAX_SCRIPT_NAME 10
+#define MAX_SCRIPT_CMDS 50
+#define MAX_FILENAME 256
+#define MAX_QUESTIONS 40  /* Total questions across 8 weeks */
+#define QUESTIONS_PER_WEEK 5
+
+/* Global state */
+static long total_mapped_bytes = 0;
+static int operation_steps = 0;
+static char* history[MAX_HISTORY] = {0};
+static int history_count = 0;
+static TritBigInt* variables[26] = {0};
+typedef struct {
+    char name[MAX_SCRIPT_NAME];
+    char commands[MAX_SCRIPT_CMDS][256];
+    int cmd_count;
+} Script;
+static Script scripts[10] = {0};
+static int script_count = 0;
+
+/* Test state */
+static int test_active = 0;  /* 0 = inactive, 1-8 = week number */
+static int test_answers[MAX_QUESTIONS] = {0};  /* User answers (0 = unanswered, 1-4 = a-d) */
+static int test_score = 0;
+static int questions_answered = 0;
+
+/* Function Prototypes */
+TritError tritjs_add_big(TritBigInt* a, TritBigInt* b, TritBigInt** result);
+TritError tritjs_subtract_big(TritBigInt* a, TritBigInt* b, TritBigInt** result);
+TritError tritjs_multiply_big(TritBigInt* a, TritBigInt* b, TritBigInt** result);
+TritError tritjs_divide_big(TritBigInt* a, TritBigInt* b, TritDivResult* result, int precision);
+TritError tritjs_power_big(TritBigInt* base, TritBigInt* exp, TritBigInt** result);
+TritError tritjs_factorial_big(TritBigInt* a, TritBigInt** result);
+TritError tritjs_sqrt_complex(TritBigInt* a, int precision, TritComplex* result);
+TritError tritjs_log3_complex(TritBigInt* a, int precision, TritComplex* result);
+TritError tritjs_sin_complex(TritBigInt* a, int precision, TritComplex* result);
+TritError tritjs_cos_complex(TritBigInt* a, int precision, TritComplex* result);
+TritError tritjs_tan_complex(TritBigInt* a, int precision, TritComplex* result);
+TritError tritjs_pi(int* len, Trit** pi);
+void cleanup_div(TritBigInt* temp_rem, TritFloat* dividend, TritFloat* divisor, TritDivResult* result);
+TritError parse_trit_string(const char* str, TritBigInt** bi);
+TritError tritbig_from_trits(Trit* trits, int len, int sign, TritBigInt** bi);
+void tritbig_free(TritBigInt* bi);
+TritError tritfloat_from_bigint(TritBigInt* bi, TritFloat* tf);
+void tritfloat_free(TritFloat tf);
+TritError tritjs_to_string(TritBigInt* bi, char** str);
+TritError tritfloat_to_string(TritFloat tf, char** str);
+TritError tritcomplex_to_string(TritComplex tc, char** str);
+void display_test_question(int qnum);
+int check_test_answer(int qnum, int user_answer);
+
+/* Sorting Functions (unchanged) */
+void quicksort(int* arr, int low, int high) { /* ... */ }
+void merge(int* arr, int l, int m, int r) { /* ... */ }
+void mergesort(int* arr, int l, int r) { /* ... */ }
+void display_memory_and_stats(const char* operation, const char* sort_method) { /* ... */ }
+
+/* History and Variable Management (unchanged) */
+void add_to_history(const char* result_str) { /* ... */ }
+char* recall_history(int index) { /* ... */ }
+void store_variable(const char* name, TritBigInt* value) { /* ... */ }
+TritBigInt* recall_variable(const char* name) { /* ... */ }
+void clear_history_and_vars() { /* ... */ }
+
+/* Save/Load with Test Integration */
+TritError save_state(const char* filename) {
+    FILE* f = fopen(filename, "w");
+    if (!f) {
+        printf("Error: Could not open file %s for writing\n", filename);
+        return TRIT_ERR_INPUT;
+    }
+
+    fprintf(f, "# TritJS-CISA State File (MIME: application/x-tritjs-cisa)\n");
+    fprintf(f, "# History\n");
+    for (int i = 0; i < history_count; i++) {
+        fprintf(f, "H: %s\n", history[i]);
+    }
+
+    fprintf(f, "# Variables\n");
+    for (int i = 0; i < 26; i++) {
+        if (variables[i]) {
+            char* str;
+            if (tritjs_to_string(variables[i], &str) == TRIT_OK) {
+                fprintf(f, "V: %c=%s\n", 'A' + i, str);
+                free(str);
+            }
+        }
+    }
+
+    fprintf(f, "# Scripts\n");
+    for (int i = 0; i < script_count; i++) {
+        fprintf(f, "S: %s\n", scripts[i].name);
+        for (int j = 0; j < scripts[i].cmd_count; j++) {
+            fprintf(f, "C: %s\n", scripts[i].commands[j]);
+        }
+    }
+
+    fprintf(f, "# Test State\n");
+    fprintf(f, "T: %d %d %d\n", test_active, test_score, questions_answered);
+    for (int i = 0; i < MAX_QUESTIONS; i++) {
+        if (test_answers[i]) {
+            fprintf(f, "A: %d %d\n", i, test_answers[i]);
+        }
+    }
+
+    fclose(f);
+    return TRIT_OK;
+}
+
+TritError load_state(const char* filename) {
+    FILE* f = fopen(filename, "r");
+    if (!f) {
+        printf("Error: Could not open file %s for reading\n", filename);
+        return TRIT_ERR_INPUT;
+    }
+
+    clear_history_and_vars();
+    test_active = 0;
+    test_score = 0;
+    questions_answered = 0;
+    memset(test_answers, 0, sizeof(test_answers));
+
+    char line[256];
+    Script* current_script = NULL;
+    while (fgets(line, sizeof(line), f)) {
+        line[strcspn(line, "\n")] = 0;
+        if (line[0] == '#') continue;
+
+        if (strncmp(line, "H: ", 3) == 0 && history_count < MAX_HISTORY) {
+            history[history_count] = strdup(line + 3);
+            history_count++;
+        } else if (strncmp(line, "V: ", 3) == 0) {
+            char var_name[2] = {line[3], '\0'};
+            char* value = line + 5;
+            TritBigInt* bi;
+            if (parse_trit_string(value, &bi) == TRIT_OK) {
+                store_variable(var_name, bi);
+            }
+        } else if (strncmp(line, "S: ", 3) == 0 && script_count < 10) {
+            current_script = &scripts[script_count++];
+            strncpy(current_script->name, line + 3, MAX_SCRIPT_NAME - 1);
+            current_script->cmd_count = 0;
+        } else if (strncmp(line, "C: ", 3) == 0 && current_script && current_script->cmd_count < MAX_SCRIPT_CMDS) {
+            strncpy(current_script->commands[current_script->cmd_count++], line + 3, 255);
+        } else if (strncmp(line, "T: ", 3) == 0) {
+            sscanf(line + 3, "%d %d %d", &test_active, &test_score, &questions_answered);
+        } else if (strncmp(line, "A: ", 3) == 0) {
+            int qnum, ans;
+            sscanf(line + 3, "%d %d", &qnum, &ans);
+            if (qnum >= 0 && qnum < MAX_QUESTIONS) test_answers[qnum] = ans;
+        }
+    }
+
+    fclose(f);
+    return TRIT_OK;
+}
+
+Script* find_script(const char* name) { /* ... */ }
+
+/* Error Handling (unchanged) */
+@d TritError int
+@d TRIT_OK 0
+@d TRIT_ERR_MEM 1
+@d TRIT_ERR_INPUT 2
+@d TRIT_ERR_DIV_ZERO 3
+@d TRIT_ERR_OVERFLOW 4
+@d TRIT_ERR_UNDEFINED 5
+@d TRIT_ERR_NEGATIVE 6
+@d TRIT_ERR_PRECISION 7
+@d TRIT_ERR_MMAP 8
+@d TRIT_ERR_SCRIPT 9
+
+FILE* audit_log = NULL;
+void init_audit_log() { /* ... */ }
+void log_error(TritError err, const char* context) { /* ... */ }
+const char* trit_error_str(TritError err) { /* ... */ }
+
+/* Data Structures (unchanged) */
+typedef int Trit;
+typedef struct { /* TritBigInt */ } TritBigInt;
+typedef struct { /* TritFloat */ } TritFloat;
+typedef struct { /* TritComplex */ } TritComplex;
+typedef struct { /* TritDivResult */ } TritDivResult;
+
+TritError map_trits(Trit** digits, int len, int* is_mapped, int* fd, char* tmp_path) { /* ... */ }
+void unmap_trits(Trit* digits, int len, int is_mapped, int fd) { /* ... */ }
+TritError tritbig_from_trits(Trit* trits, int len, int sign, TritBigInt** bi) { /* ... */ }
+void tritbig_free(TritBigInt* bi) { /* ... */ }
+TritError tritfloat_from_bigint(TritBigInt* bi, TritFloat* tf) { /* ... */ }
+void tritfloat_free(TritFloat tf) { /* ... */ }
+TritError tritcomplex_from_float(TritFloat real, TritFloat imag, TritComplex* tc) { /* ... */ }
+void tritcomplex_free(TritComplex tc) { /* ... */ }
+
+/* Arithmetic Operations (unchanged) */
+TritError tritjs_add_big(TritBigInt* a, TritBigInt* b, TritBigInt** result) { /* ... */ }
+TritError tritjs_subtract_big(TritBigInt* a, TritBigInt* b, TritBigInt** result) { /* ... */ }
+TritError tritjs_multiply_big(TritBigInt* a, TritBigInt* b, TritBigInt** result) { /* ... */ }
+void cleanup_div(TritBigInt* temp_rem, TritFloat* dividend, TritFloat* divisor, TritDivResult* result) { /* ... */ }
+TritError tritjs_divide_big(TritBigInt* a, TritBigInt* b, TritDivResult* result, int precision) { /* ... */ }
+TritError tritjs_power_big(TritBigInt* base, TritBigInt* exp, TritBigInt** result) { /* ... */ }
+TritError tritjs_factorial_big(TritBigInt* a, TritBigInt** result) { /* ... */ }
+
+/* Scientific Operations (unchanged) */
+TritError tritjs_sqrt_complex(TritBigInt* a, int precision, TritComplex* result) { /* ... */ }
+TritError tritjs_log3_complex(TritBigInt* a, int precision, TritComplex* result) { /* ... */ }
+TritError tritjs_trig_complex(TritBigInt* a, int precision, TritComplex* result, double (*trig_func)(double)) { /* ... */ }
+TritError tritjs_sin_complex(TritBigInt* a, int precision, TritComplex* result) { /* ... */ }
+TritError tritjs_cos_complex(TritBigInt* a, int precision, TritComplex* result) { /* ... */ }
+TritError tritjs_tan_complex(TritBigInt* a, int precision, TritComplex* result) { /* ... */ }
+TritError tritjs_pi(int* len, Trit** pi) { /* ... */ }
+
+/* Utility Functions (unchanged) */
+TritError tritjs_to_string(TritBigInt* bi, char** str) { /* ... */ }
+TritError tritfloat_to_string(TritFloat tf, char** str) { /* ... */ }
+TritError tritcomplex_to_string(TritComplex tc, char** str) { /* ... */ }
+
+/* Test Questions Database */
+static const char* test_questions[MAX_QUESTIONS][6] = {
+    /* Week 1: Introduction */
+    {"What are the digits used in the ternary number system?", "0, 1, 2, 3", "0, 1, 2", "0, 1", "1, 2, 3", "2"},
+    {"What is the decimal equivalent of the ternary number 120?", "3", "12", "15", "18", "3"},
+    {"Which is a real-world application of ternary mathematics in TritJS-CISA?", "Weather forecasting", "Cybersecurity encoding", "Video game design", "Financial modeling", "2"},
+    {"Convert 101 (ternary) to decimal:", "10", "11", "12", "13", "1"},
+    {"Convert 1101 (binary) to ternary:", "21", "111", "102", "120", "3"},
+    /* Week 2: Addition */
+    {"What is 1 + 2 in ternary?", "3", "10", "12", "11", "2"},
+    {"What happens when you add 2 + 2 in ternary?", "Remains 2", "Becomes 4", "Carries over to 11", "Becomes 10", "3"},
+    {"Perform 12 + 21 in ternary:", "100", "110", "101", "33", "1"},
+    {"What is the sum of 102 + 11 in ternary?", "120", "110", "111", "200", "1"},
+    {"In TritJS-CISA, what does operation_steps++ track in addition?", "Memory usage", "Number of additions", "Carry operations", "Steps in process", "4"},
+    /* Week 3: Subtraction */
+    {"What is 2 - 1 in ternary?", "0", "1", "2", "10", "2"},
+    {"What happens when subtracting 1 - 2 in ternary?", "Borrow from next place", "Answer is negative", "Answer is always 1", "No borrowing needed", "1"},
+    {"Compute 21 - 12 in ternary:", "2", "10", "12", "1", "2"},
+    {"What is 100 - 11 in ternary?", "22", "12", "21", "11", "3"},
+    {"How does tritjs_subtract_big handle borrowing?", "Adds negative subtrahend", "Directly subtracts digits", "Uses decimal conversion", "Ignores borrowing", "1"},
+    /* Week 4: Multiplication */
+    {"What is 2 × 2 in ternary?", "4", "11", "10", "20", "2"},
+    {"What is the result of 12 × 2 in ternary?", "22", "111", "101", "24", "3"},
+    {"Compute 11 × 10 in ternary:", "110", "100", "120", "210", "1"},
+    {"In TritJS-CISA, what does tritjs_multiply_big do when a product exceeds 2?", "Discards excess", "Carries over", "Converts to decimal", "Returns error", "2"},
+    {"Multiply 102 × 2 in ternary:", "211", "201", "210", "220", "1"},
+    /* Week 5: Division */
+    {"What is 10 ÷ 2 in ternary?", "1", "2", "11", "10", "2"},
+    {"How are remainders handled in ternary division in TritJS-CISA?", "Ignored", "Converted to binary", "Expressed as fractions", "Non-existent", "3"},
+    {"Divide 21 ÷ 2 in ternary:", "10.1", "11", "10", "12", "1"},
+    {"What is the quotient of 102 ÷ 11 in ternary?", "2", "10", "12", "20", "2"},
+    {"Perform 210 ÷ 12 in ternary:", "12", "11", "20", "10", "1"},
+    /* Week 6: Advanced Math */
+    {"What is 2² in ternary?", "10", "11", "12", "20", "2"},
+    {"What is log₃(9) in ternary?", "10", "2", "11", "12", "1"},
+    {"Compute 3! (3 factorial) in ternary:", "20", "12", "11", "10", "1"},
+    {"What is √12 in ternary (approx. 1 trit)?", "10", "11", "20", "12", "2"},
+    {"In TritJS-CISA, what limits factorial computation?", "Memory size", "Input > 20", "Precision limit", "Negative inputs", "2"},
+    /* Week 7: Algebra */
+    {"Solve X + 12 = 21 in ternary:", "1", "10", "11", "20", "2"},
+    {"Solve Y × 2 = 11 in ternary:", "2", "10", "1", "12", "2"},
+    {"Solve X - 10 = 2 in ternary:", "11", "12", "20", "10", "2"},
+    {"Solve X + Y = 12 and X × Y = 21 in ternary:", "X=10,Y=2", "X=11,Y=1", "X=12,Y=0", "No solution", "2"},
+    {"How does TritJS-CISA handle variables in equations?", "Converts to decimal", "Stores via store_variable", "Uses binary logic", "Ignores them", "2"},
+    /* Week 8: Applications */
+    {"What is a key advantage of ternary computing?", "Uses less energy", "Uses binary gates", "Quantum only", "No practical use", "1"},
+    {"Which field benefits from TritJS-CISA?", "Cybersecurity", "AI", "Data compression", "All of above", "4"},
+    {"How does ternary encoding improve cybersecurity?", "Faster processing", "More compact", "Non-binary obfuscation", "Simpler algorithms", "3"},
+    {"What is the ternary sum 210 + 122 in a cybersecurity context?", "1002", "1102", "1021", "1111", "2"},
+    {"What does save_state enable in TritJS-CISA?", "Real-time computation", "Persistent analysis", "Binary conversion", "Faster sorting", "2"}
+};
+
+/* Display Test Question */
+void display_test_question(int qnum) {
+    if (qnum < 0 || qnum >= MAX_QUESTIONS) {
+        printf("Error: Invalid question number\n");
+        return;
+    }
+    printf("\nQuestion %d: %s\n", qnum + 1, test_questions[qnum][0]);
+    printf("a) %s\n", test_questions[qnum][1]);
+    printf("b) %s\n", test_questions[qnum][2]);
+    printf("c) %s\n", test_questions[qnum][3]);
+    printf("d) %s\n", test_questions[qnum][4]);
+    printf("Enter answer (1-4 for a-d): ");
+}
+
+/* Check Test Answer */
+int check_test_answer(int qnum, int user_answer) {
+    if (qnum < 0 || qnum >= MAX_QUESTIONS || user_answer < 1 || user_answer > 4) return 0;
+    int correct_answer = atoi(test_questions[qnum][5]);
+    return (user_answer == correct_answer) ? 1 : 0;
+}
+
+/* CLI with Test Integration */
+void run_calculator() {
+    init_audit_log();
+    char input[256], op[10], arg1[256], arg2[256] = "";
+    printf("=== TritJS-CISA Ternary Calculator with Certification ===\n");
+    printf("Type 'help' for commands\n");
+    while (1) {
+        total_mapped_bytes = 0;
+        operation_steps = 0;
+        printf("> ");
+        if (!fgets(input, 256, stdin)) break;
+        input[strcspn(input, "\n")] = 0;
+        if (audit_log) fprintf(audit_log, "[%ld] Command: %s\n", time(NULL), input);
+        if (strcmp(input, "quit") == 0) break;
+        if (strcmp(input, "help") == 0) {
+            print_help();
+            continue;
+        }
+        if (strcmp(input, "clear") == 0) {
+            clear_history_and_vars();
+            test_active = 0;
+            test_score = 0;
+            questions_answered = 0;
+            memset(test_answers, 0, sizeof(test_answers));
+            printf("History, variables, scripts, and test state cleared\n");
+            continue;
+        }
+        if (strncmp(input, "TEST ", 5) == 0) {
+            int week;
+            if (sscanf(input + 5, "%d", &week) != 1 || week < 1 || week > 8) {
+                printf("Error: Invalid week (1-8)\n");
+                continue;
+            }
+            test_active = week;
+            int start_q = (week - 1) * QUESTIONS_PER_WEEK;
+            printf("Starting Week %d Test. Use 'CHECK <qnum> <answer>' to submit answers.\n", week);
+            for (int i = 0; i < QUESTIONS_PER_WEEK; i++) {
+                display_test_question(start_q + i);
+                printf("(Previously answered: %d)\n", test_answers[start_q + i]);
+            }
+            continue;
+        }
+        if (strncmp(input, "CHECK ", 6) == 0) {
+            int qnum, answer;
+            if (!test_active) {
+                printf("Error: No test active. Use 'TEST <week>' first.\n");
+                continue;
+            }
+            if (sscanf(input + 6, "%d %d", &qnum, &answer) != 2 || qnum < 1 || qnum > QUESTIONS_PER_WEEK || answer < 1 || answer > 4) {
+                printf("Error: Invalid format. Use 'CHECK <qnum> <answer>' (qnum 1-5, answer 1-4)\n");
+                continue;
+            }
+            int global_qnum = (test_active - 1) * QUESTIONS_PER_WEEK + (qnum - 1);
+            if (test_answers[global_qnum] == 0) questions_answered++;
+            test_answers[global_qnum] = answer;
+            int correct = check_test_answer(global_qnum, answer);
+            if (correct && test_answers[global_qnum] == answer && questions_answered <= QUESTIONS_PER_WEEK) test_score++;
+            printf("Answer recorded. Correct: %s\n", correct ? "Yes" : "No");
+            continue;
+        }
+        if (strcmp(input, "SCORE") == 0) {
+            if (!test_active) {
+                printf("No test active. Start with 'TEST <week>'\n");
+                continue;
+            }
+            printf("Week %d Test Score: %d/%d (%.2f%%)\n", test_active, test_score, QUESTIONS_PER_WEEK, (float)test_score / QUESTIONS_PER_WEEK * 100);
+            if (test_score == QUESTIONS_PER_WEEK) {
+                printf("Congratulations! You’ve passed Week %d certification.\n", test_active);
+            }
+            continue;
+        }
+        /* Existing commands (stats, save, load, PROG, RUN, arithmetic) remain unchanged */
+        if (strncmp(input, "stats", 5) == 0) { /* ... */ }
+        if (strncmp(input, "save ", 5) == 0) { /* ... */ }
+        if (strncmp(input, "load ", 5) == 0) { /* ... */ }
+        if (strncmp(input, "PROG ", 5) == 0) { /* ... */ }
+        if (strncmp(input, "RUN ", 4) == 0) { /* ... */ }
+        execute_command(input, 0);
+    }
+    clear_history_and_vars();
+    if (audit_log) fclose(audit_log);
+}
+
+@*2 Main Function.
+@c
+int main() {
+    run_calculator();
+    return 0;
+}

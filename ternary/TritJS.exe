@@ -1,0 +1,859 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <windows.h>
+#include <time.h>
+#include <limits.h>
+
+#define ENABLE_VERBOSE_LOGGING 1
+#define VERSION "2.0-windows-interactive"
+#define BASE_81 81
+#define T81_MMAP_THRESHOLD (500 * 1024)
+#define MAX_INPUT 256
+
+typedef int TritError;
+#if ENABLE_VERBOSE_LOGGING
+#define LOG_ERROR(err, context) log_error(err, context, __FILE__, __LINE__)
+#else
+#define LOG_ERROR(err, context) log_error(err, context)
+#endif
+
+/* Data Structures */
+typedef struct {
+    int sign;                 /* 0 = positive, 1 = negative */
+    unsigned char *digits;    /* Array of base-81 digits (little-endian) */
+    size_t len;               /* Number of digits */
+    int is_mapped;            /* 1 if allocated with Windows file mapping */
+    HANDLE hFile;             /* File handle */
+    HANDLE hMap;              /* Mapping handle */
+    char tmp_path[MAX_PATH];  /* Temporary file path */
+} T81BigInt;
+
+typedef struct {
+    T81BigInt real;
+    T81BigInt imag;
+} T81Complex;
+
+/* Global Variables */
+static FILE* audit_log = NULL;
+static long total_mapped_bytes = 0;
+static int operation_steps = 0;
+
+/* Function Prototypes (unchanged from previous) */
+TritError allocate_digits(T81BigInt *x, size_t lengthNeeded);
+void t81bigint_free(T81BigInt* x);
+void tritbig_free(T81BigInt* x);
+TritError parse_trit_string(const char* s, T81BigInt** out);
+TritError t81bigint_to_trit_string(const T81BigInt* in, char** out);
+TritError t81bigint_to_double(T81BigInt* x, double* out);
+TritError double_to_t81bigint(double d, T81BigInt** result);
+TritError tritjs_add_big(T81BigInt* A, T81BigInt* B, T81BigInt** result);
+TritError tritjs_subtract_big(T81BigInt* A, T81BigInt* B, T81BigInt** result);
+TritError tritjs_multiply_big(T81BigInt* A, T81BigInt* B, T81BigInt** result);
+TritError tritjs_divide_big(T81BigInt* A, T81BigInt* B, T81BigInt** quotient, T81BigInt** remainder);
+TritError tritjs_power_big(T81BigInt* base, T81BigInt* exp, T81BigInt** result);
+TritError tritjs_factorial_big(T81BigInt* a, T81BigInt** result);
+TritError tritjs_add_complex(T81Complex* A, T81Complex* B, T81Complex** result);
+TritError tritjs_subtract_complex(T81Complex* A, T81Complex* B, T81Complex** result);
+TritError tritjs_multiply_complex(T81Complex* A, T81Complex* B, T81Complex** result);
+TritError tritjs_divide_complex(T81Complex* A, T81Complex* B, T81Complex** result);
+TritError tritjs_sqrt_complex(T81BigInt* a, int precision, T81Complex** result);
+TritError tritjs_log3_complex(T81BigInt* a, int precision, T81Complex** result);
+TritError tritjs_sin_complex(T81BigInt* a, int precision, T81Complex** result);
+TritError tritjs_cos_complex(T81BigInt* a, int precision, T81Complex** result);
+TritError tritjs_tan_complex(T81BigInt* a, int precision, T81Complex** result);
+TritError tritjs_pi(int* len, int** pi);
+TritError tritjs_logical_and(T81BigInt* A, T81BigInt* B, T81BigInt** result);
+TritError tritjs_logical_or(T81BigInt* A, T81BigInt* B, T81BigInt** result);
+TritError tritjs_logical_not(T81BigInt* A, T81BigInt** result);
+TritError tritjs_logical_xor(T81BigInt* A, T81BigInt* B, T81BigInt** result);
+
+/* Logging and Error Handling (unchanged) */
+static const char* trit_error_str(TritError err) {
+    switch (err) {
+        case 0: return "No error";
+        case 1: return "Memory allocation failed";
+        case 2: return "Invalid input";
+        case 3: return "Division by zero";
+        case 4: return "Overflow detected";
+        case 6: return "Negative input unsupported";
+        default: return "Unknown error";
+    }
+}
+
+static void log_error(TritError err, const char* context, const char* file, int line) {
+    if (!audit_log) return;
+    time_t now;
+    time(&now);
+    fprintf(audit_log, "[%s] ERROR %d: %s in %s (%s:%d)\n",
+            ctime(&now), err, trit_error_str(err), context, file, line);
+    fflush(audit_log);
+}
+
+/* Memory Management (unchanged) */
+TritError allocate_digits(T81BigInt *x, size_t lengthNeeded) {
+    size_t bytesNeeded = (lengthNeeded == 0 ? 1 : lengthNeeded);
+    x->len = lengthNeeded;
+    x->is_mapped = 0;
+    x->hFile = INVALID_HANDLE_VALUE;
+    x->hMap = NULL;
+
+    if (bytesNeeded < T81_MMAP_THRESHOLD) {
+        x->digits = (unsigned char*)calloc(bytesNeeded, 1);
+        if (!x->digits) return 1;
+        return 0;
+    }
+
+    GetTempPath(MAX_PATH, x->tmp_path);
+    GetTempFileName(x->tmp_path, "trit", 0, x->tmp_path);
+    x->hFile = CreateFile(x->tmp_path, GENERIC_READ | GENERIC_WRITE,
+                          0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, NULL);
+    if (x->hFile == INVALID_HANDLE_VALUE) return 8;
+
+    LARGE_INTEGER li;
+    li.QuadPart = bytesNeeded;
+    SetFilePointerEx(x->hFile, li, NULL, FILE_BEGIN);
+    SetEndOfFile(x->hFile);
+
+    x->hMap = CreateFileMapping(x->hFile, NULL, PAGE_READWRITE, 0, bytesNeeded, NULL);
+    if (!x->hMap) {
+        CloseHandle(x->hFile);
+        return 8;
+    }
+
+    x->digits = (unsigned char*)MapViewOfFile(x->hMap, FILE_MAP_ALL_ACCESS, 0, 0, bytesNeeded);
+    if (!x->digits) {
+        CloseHandle(x->hMap);
+        CloseHandle(x->hFile);
+        return 8;
+    }
+
+    x->is_mapped = 1;
+    total_mapped_bytes += bytesNeeded;
+    operation_steps++;
+    return 0;
+}
+
+void t81bigint_free(T81BigInt* x) {
+    if (!x) return;
+    if (x->is_mapped && x->digits) {
+        UnmapViewOfFile(x->digits);
+        CloseHandle(x->hMap);
+        CloseHandle(x->hFile);
+        DeleteFile(x->tmp_path);
+        total_mapped_bytes -= (x->len == 0 ? 1 : x->len);
+    } else {
+        free(x->digits);
+    }
+    memset(x, 0, sizeof(*x));
+}
+
+void tritbig_free(T81BigInt* x) {
+    if (!x) return;
+    t81bigint_free(x);
+    free(x);
+}
+
+/* Base Conversion (unchanged) */
+TritError parse_trit_string(const char* s, T81BigInt** out) {
+    *out = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (!*out) return 1;
+
+    int sign = (s[0] == '-') ? 1 : 0;
+    size_t pos = sign ? 1 : 0;
+    size_t len = strlen(s) - pos;
+    if (allocate_digits(*out, len)) return 1;
+
+    (*out)->sign = sign;
+    for (size_t i = 0; i < len; i++) {
+        char c = s[pos + len - 1 - i];
+        if (c < '0' || c > '2') return 2;
+        (*out)->digits[i] = c - '0';
+    }
+    while ((*out)->len > 1 && (*out)->digits[(*out)->len - 1] == 0)
+        (*out)->len--;
+    return 0;
+}
+
+TritError t81bigint_to_trit_string(const T81BigInt* in, char** out) {
+    if (in->len == 1 && in->digits[0] == 0) {
+        *out = strdup("0");
+        return 0;
+    }
+    size_t capacity = in->len * 4 + 2;
+    char* buf = (char*)calloc(capacity, 1);
+    size_t idx = 0;
+
+    for (size_t i = 0; i < in->len; i++) {
+        buf[idx++] = '0' + in->digits[in->len - 1 - i];
+    }
+    if (in->sign) buf[idx++] = '-';
+    buf[idx] = '\0';
+
+    for (size_t i = 0; i < idx / 2; i++) {
+        char t = buf[i];
+        buf[i] = buf[idx - 1 - i];
+        buf[idx - 1 - i] = t;
+    }
+    *out = buf;
+    return 0;
+}
+
+/* Conversion Helpers (unchanged) */
+TritError t81bigint_to_double(T81BigInt* x, double* out) {
+    if (!x) return 2;
+    int sign = x->sign ? -1 : 1;
+    double accum = 0.0;
+    for (size_t i = 0; i < x->len; i++) {
+        accum += x->digits[i] * pow(BASE_81, (double)i);
+    }
+    *out = sign * accum;
+    return 0;
+}
+
+TritError double_to_t81bigint(double d, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (!*result) return 1;
+
+    int sign = (d < 0) ? 1 : 0;
+    if (d < 0) d = -d;
+    size_t capacity = 16;
+    if (allocate_digits(*result, capacity)) return 1;
+
+    size_t idx = 0;
+    while (d >= 1.0 || idx == 0) {
+        int digit = (int)fmod(d, BASE_81);
+        if (idx >= capacity) {
+            capacity *= 2;
+            unsigned char* new_digits = (unsigned char*)realloc((*result)->digits, capacity);
+            if (!new_digits) return 1;
+            (*result)->digits = new_digits;
+            memset((*result)->digits + idx, 0, capacity - idx);
+        }
+        (*result)->digits[idx++] = (unsigned char)digit;
+        d = floor(d / BASE_81);
+    }
+    (*result)->len = idx;
+    (*result)->sign = sign;
+    while ((*result)->len > 1 && (*result)->digits[(*result)->len - 1] == 0)
+        (*result)->len--;
+    return 0;
+}
+
+/* Arithmetic Operations (unchanged) */
+TritError tritjs_add_big(T81BigInt* A, T81BigInt* B, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    size_t max_len = (A->len > B->len) ? A->len : B->len;
+    if (allocate_digits(*result, max_len + 1)) return 1;
+
+    int carry = 0;
+    for (size_t i = 0; i < max_len || carry; i++) {
+        int sum = carry;
+        if (i < A->len) sum += A->digits[i];
+        if (i < B->len) sum += B->digits[i];
+        (*result)->digits[i] = sum % BASE_81;
+        carry = sum / BASE_81;
+        if (i >= (*result)->len - 1 && carry) allocate_digits(*result, (*result)->len + 1);
+    }
+    while ((*result)->len > 1 && (*result)->digits[(*result)->len - 1] == 0)
+        (*result)->len--;
+    return 0;
+}
+
+TritError tritjs_subtract_big(T81BigInt* A, T81BigInt* B, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    size_t max_len = (A->len > B->len) ? A->len : B->len;
+    if (allocate_digits(*result, max_len)) return 1;
+
+    int borrow = 0;
+    for (size_t i = 0; i < max_len; i++) {
+        int a = (i < A->len) ? A->digits[i] : 0;
+        int b = (i < B->len) ? B->digits[i] : 0;
+        int diff = a - b - borrow;
+        if (diff < 0) {
+            diff += BASE_81;
+            borrow = 1;
+        } else {
+            borrow = 0;
+        }
+        (*result)->digits[i] = diff;
+    }
+    while ((*result)->len > 1 && (*result)->digits[(*result)->len - 1] == 0)
+        (*result)->len--;
+    (*result)->sign = (A->sign != B->sign) ? 1 : 0;
+    return 0;
+}
+
+TritError tritjs_multiply_big(T81BigInt* A, T81BigInt* B, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (allocate_digits(*result, A->len + B->len)) return 1;
+
+    for (size_t i = 0; i < A->len; i++) {
+        int carry = 0;
+        for (size_t j = 0; j < B->len || carry; j++) {
+            size_t pos = i + j;
+            int val = (*result)->digits[pos] + (i < A->len ? A->digits[i] : 0) * (j < B->len ? B->digits[j] : 0) + carry;
+            (*result)->digits[pos] = val % BASE_81;
+            carry = val / BASE_81;
+            if (pos >= (*result)->len - 1 && carry) allocate_digits(*result, (*result)->len + 1);
+        }
+    }
+    while ((*result)->len > 1 && (*result)->digits[(*result)->len - 1] == 0)
+        (*result)->len--;
+    (*result)->sign = (A->sign != B->sign) ? 1 : 0;
+    return 0;
+}
+
+TritError tritjs_divide_big(T81BigInt* A, T81BigInt* B, T81BigInt** quotient, T81BigInt** remainder) {
+    *quotient = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    *remainder = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (!*quotient || !*remainder) return 1;
+
+    int b_zero = (B->len == 1 && B->digits[0] == 0);
+    if (b_zero) {
+        LOG_ERROR(3, "tritjs_divide_big");
+        return 3;
+    }
+
+    if (allocate_digits(*quotient, A->len)) return 1;
+    if (allocate_digits(*remainder, A->len)) return 1;
+    memcpy((*remainder)->digits, A->digits, A->len);
+    (*remainder)->len = A->len;
+
+    for (ssize_t i = A->len - 1; i >= 0; i--) {
+        T81BigInt temp_rem = **remainder;
+        int q_digit = 0;
+        while (1) {
+            T81BigInt prod;
+            if (allocate_digits(&prod, B->len + 1)) return 1;
+            int carry = 0;
+            for (size_t j = 0; j < B->len; j++) {
+                int val = B->digits[j] * (q_digit + 1) + carry;
+                prod.digits[j] = val % BASE_81;
+                carry = val / BASE_81;
+            }
+            if (carry) prod.digits[B->len] = carry;
+            prod.len = carry ? B->len + 1 : B->len;
+
+            T81BigInt* cmp_result;
+            tritjs_subtract_big(&temp_rem, &prod, &cmp_result);
+            if (cmp_result->sign) {
+                t81bigint_free(&prod);
+                tritbig_free(cmp_result);
+                break;
+            }
+            q_digit++;
+            t81bigint_free(&temp_rem);
+            temp_rem = *cmp_result;
+            t81bigint_free(&prod);
+        }
+        (*quotient)->digits[i] = q_digit;
+        *remainder = temp_rem;
+    }
+    while ((*quotient)->len > 1 && (*quotient)->digits[(*quotient)->len - 1] == 0)
+        (*quotient)->len--;
+    while ((*remainder)->len > 1 && (*remainder)->digits[(*remainder)->len - 1] == 0)
+        (*remainder)->len--;
+    (*quotient)->sign = (A->sign != B->sign) ? 1 : 0;
+    (*remainder)->sign = A->sign;
+    return 0;
+}
+
+TritError tritjs_power_big(T81BigInt* base, T81BigInt* exp, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (allocate_digits(*result, 1)) return 1;
+    (*result)->digits[0] = 1;
+
+    double exp_d;
+    if (t81bigint_to_double(exp, &exp_d)) return 2;
+    int e = (int)exp_d;
+    if (exp->sign || e > 1000) return 6;
+
+    for (int i = 0; i < e; i++) {
+        T81BigInt* temp;
+        if (tritjs_multiply_big(*result, base, &temp)) return 1;
+        t81bigint_free(*result);
+        *result = temp;
+    }
+    (*result)->sign = (base->sign && (e % 2)) ? 1 : 0;
+    return 0;
+}
+
+TritError tritjs_factorial_big(T81BigInt* a, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (a->sign) return 6;
+    double a_d;
+    if (t81bigint_to_double(a, &a_d)) return 2;
+    int n = (int)a_d;
+    if (n > 20) return 4;
+
+    if (allocate_digits(*result, 1)) return 1;
+    (*result)->digits[0] = 1;
+    for (int i = 1; i <= n; i++) {
+        T81BigInt temp = **result;
+        T81BigInt i_big;
+        if (allocate_digits(&i_big, 1)) return 1;
+        i_big.digits[0] = i;
+        i_big.len = 1;
+        if (tritjs_multiply_big(&temp, &i_big, result)) return 1;
+        t81bigint_free(&temp);
+        t81bigint_free(&i_big);
+    }
+    return 0;
+}
+
+/* Complex Operations (unchanged) */
+TritError tritjs_add_complex(T81Complex* A, T81Complex* B, T81Complex** result) {
+    *result = (T81Complex*)calloc(1, sizeof(T81Complex));
+    if (!*result) return 1;
+    if (tritjs_add_big(&A->real, &B->real, &(*result)->real)) return 1;
+    if (tritjs_add_big(&A->imag, &B->imag, &(*result)->imag)) return 1;
+    return 0;
+}
+
+TritError tritjs_subtract_complex(T81Complex* A, T81Complex* B, T81Complex** result) {
+    *result = (T81Complex*)calloc(1, sizeof(T81Complex));
+    if (!*result) return 1;
+    if (tritjs_subtract_big(&A->real, &B->real, &(*result)->real)) return 1;
+    if (tritjs_subtract_big(&A->imag, &B->imag, &(*result)->imag)) return 1;
+    return 0;
+}
+
+TritError tritjs_multiply_complex(T81Complex* A, T81Complex* B, T81Complex** result) {
+    *result = (T81Complex*)calloc(1, sizeof(T81Complex));
+    if (!*result) return 1;
+
+    T81BigInt *ac = NULL, *bd = NULL, *ad = NULL, *bc = NULL;
+    if (tritjs_multiply_big(&A->real, &B->real, &ac)) return 1;
+    if (tritjs_multiply_big(&B->imag, &B->imag, &bd)) return 1;
+    if (tritjs_multiply_big(&A->real, &B->imag, &ad)) return 1;
+    if (tritjs_multiply_big(&A->imag, &B->real, &bc)) return 1;
+
+    if (tritjs_subtract_big(ac, bd, &(*result)->real)) return 1;
+    if (tritjs_add_big(ad, bc, &(*result)->imag)) return 1;
+
+    tritbig_free(ac);
+    tritbig_free(bd);
+    tritbig_free(ad);
+    tritbig_free(bc);
+    return 0;
+}
+
+TritError tritjs_divide_complex(T81Complex* A, T81Complex* B, T81Complex** result) {
+    *result = (T81Complex*)calloc(1, sizeof(T81Complex));
+    if (!*result) return 1;
+
+    T81BigInt *ac = NULL, *bd = NULL, *ad = NULL, *bc = NULL, *denom = NULL;
+    if (tritjs_multiply_big(&A->real, &B->real, &ac)) return 1;
+    if (tritjs_multiply_big(&B->imag, &B->imag, &bd)) return 1;
+    if (tritjs_multiply_big(&A->imag, &B->real, &ad)) return 1;
+    if (tritjs_multiply_big(&A->real, &B->imag, &bc)) return 1;
+    if (tritjs_add_big(bd, bd, &denom)) return 1;
+
+    T81BigInt *num_real = NULL, *num_imag = NULL;
+    if (tritjs_add_big(ac, bd, &num_real)) return 1;
+    if (tritjs_subtract_big(ad, bc, &num_imag)) return 1;
+
+    T81BigInt *q_real = NULL, *r_real = NULL, *q_imag = NULL, *r_imag = NULL;
+    if (tritjs_divide_big(num_real, denom, &q_real, &r_real)) return 1;
+    if (tritjs_divide_big(num_imag, denom, &q_imag, &r_imag)) return 1;
+
+    (*result)->real = *q_real;
+    (*result)->imag = *q_imag;
+
+    tritbig_free(ac);
+    tritbig_free(bd);
+    tritbig_free(ad);
+    tritbig_free(bc);
+    tritbig_free(denom);
+    tritbig_free(num_real);
+    tritbig_free(num_imag);
+    tritbig_free(r_real);
+    tritbig_free(r_imag);
+    free(q_real);
+    free(q_imag);
+    return 0;
+}
+
+/* Scientific Functions (unchanged) */
+TritError tritjs_sqrt_complex(T81BigInt* a, int precision, T81Complex** result) {
+    (void)precision;
+    if (!a) return 2;
+
+    *result = (T81Complex*)calloc(1, sizeof(T81Complex));
+    if (!*result) return 1;
+
+    double d;
+    if (t81bigint_to_double(a, &d)) return 2;
+    if (d >= 0) {
+        double sq = sqrt(d);
+        if (double_to_t81bigint(sq, &(*result)->real)) return 1;
+        if (allocate_digits(&(*result)->imag, 1)) return 1;
+        (*result)->imag.digits[0] = 0;
+    } else {
+        double sq = sqrt(-d);
+        if (allocate_digits(&(*result)->real, 1)) return 1;
+        (*result)->real.digits[0] = 0;
+        if (double_to_t81bigint(sq, &(*result)->imag)) return 1;
+    }
+    return 0;
+}
+
+TritError tritjs_log3_complex(T81BigInt* a, int precision, T81Complex** result) {
+    (void)precision;
+    if (!a) return 2;
+
+    *result = (T81Complex*)calloc(1, sizeof(T81Complex));
+    if (!*result) return 1;
+
+    double d;
+    if (t81bigint_to_double(a, &d)) return 2;
+    if (d > 0) {
+        double l = log(d) / log(3.0);
+        if (double_to_t81bigint(l, &(*result)->real)) return 1;
+        if (allocate_digits(&(*result)->imag, 1)) return 1;
+        (*result)->imag.digits[0] = 0;
+    } else {
+        double l = log(-d) / log(3.0);
+        if (double_to_t81bigint(l, &(*result)->real)) return 1;
+        if (double_to_t81bigint(M_PI / log(3.0), &(*result)->imag)) return 1;
+    }
+    return 0;
+}
+
+TritError tritjs_sin_complex(T81BigInt* a, int precision, T81Complex** result) {
+    (void)precision;
+    if (!a) return 2;
+
+    *result = (T81Complex*)calloc(1, sizeof(T81Complex));
+    if (!*result) return 1;
+
+    double d;
+    if (t81bigint_to_double(a, &d)) return 2;
+    double s = sin(d);
+    if (double_to_t81bigint(s, &(*result)->real)) return 1;
+    if (double_to_t81bigint(0.0, &(*result)->imag)) return 1;
+    return 0;
+}
+
+TritError tritjs_cos_complex(T81BigInt* a, int precision, T81Complex** result) {
+    (void)precision;
+    if (!a) return 2;
+
+    *result = (T81Complex*)calloc(1, sizeof(T81Complex));
+    if (!*result) return 1;
+
+    double d;
+    if (t81bigint_to_double(a, &d)) return 2;
+    double c = cos(d);
+    if (double_to_t81bigint(c, &(*result)->real)) return 1;
+    if (double_to_t81bigint(0.0, &(*result)->imag)) return 1;
+    return 0;
+}
+
+TritError tritjs_tan_complex(T81BigInt* a, int precision, T81Complex** result) {
+    (void)precision;
+    if (!a) return 2;
+
+    *result = (T81Complex*)calloc(1, sizeof(T81Complex));
+    if (!*result) return 1;
+
+    double d;
+    if (t81bigint_to_double(a, &d)) return 2;
+    double t = tan(d);
+    if (double_to_t81bigint(t, &(*result)->real)) return 1;
+    if (double_to_t81bigint(0.0, &(*result)->imag)) return 1;
+    return 0;
+}
+
+TritError tritjs_pi(int* len, int** pi) {
+    static int pi_val[] = {1, 0, 0, 1, 0, 2, 2, 1};
+    *len = 8;
+    *pi = (int*)malloc(8 * sizeof(int));
+    if (!*pi) return 1;
+    memcpy(*pi, pi_val, 8 * sizeof(int));
+    return 0;
+}
+
+/* Ternary Logical Operations (unchanged) */
+int ternary_and(int a, int b) { return (a < b) ? a : b; }
+int ternary_or(int a, int b) { return (a > b) ? a : b; }
+int ternary_not(int a) { return 2 - a; }
+int ternary_xor(int a, int b) { return (a + b) % 3; }
+
+TritError tritjs_logical_and(T81BigInt* A, T81BigInt* B, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    size_t max_len = (A->len > B->len) ? A->len : B->len;
+    if (allocate_digits(*result, max_len)) return 1;
+
+    for (size_t i = 0; i < max_len; i++) {
+        int a = (i < A->len) ? A->digits[i] : 0;
+        int b = (i < B->len) ? B->digits[i] : 0;
+        (*result)->digits[i] = ternary_and(a, b);
+    }
+    while ((*result)->len > 1 && (*result)->digits[(*result)->len - 1] == 0)
+        (*result)->len--;
+    return 0;
+}
+
+TritError tritjs_logical_or(T81BigInt* A, T81BigInt* B, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    size_t max_len = (A->len > B->len) ? A->len : B->len;
+    if (allocate_digits(*result, max_len)) return 1;
+
+    for (size_t i = 0; i < max_len; i++) {
+        int a = (i < A->len) ? A->digits[i] : 0;
+        int b = (i < B->len) ? B->digits[i] : 0;
+        (*result)->digits[i] = ternary_or(a, b);
+    }
+    while ((*result)->len > 1 && (*result)->digits[(*result)->len - 1] == 0)
+        (*result)->len--;
+    return 0;
+}
+
+TritError tritjs_logical_not(T81BigInt* A, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    if (allocate_digits(*result, A->len)) return 1;
+
+    for (size_t i = 0; i < A->len; i++) {
+        (*result)->digits[i] = ternary_not(A->digits[i]);
+    }
+    (*result)->len = A->len;
+    return 0;
+}
+
+TritError tritjs_logical_xor(T81BigInt* A, T81BigInt* B, T81BigInt** result) {
+    *result = (T81BigInt*)calloc(1, sizeof(T81BigInt));
+    size_t max_len = (A->len > B->len) ? A->len : B->len;
+    if (allocate_digits(*result, max_len)) return 1;
+
+    for (size_t i = 0; i < max_len; i++) {
+        int a = (i < A->len) ? A->digits[i] : 0;
+        int b = (i < B->len) ? B->digits[i] : 0;
+        (*result)->digits[i] = ternary_xor(a, b);
+    }
+    while ((*result)->len > 1 && (*result)->digits[(*result)->len - 1] == 0)
+        (*result)->len--;
+    return 0;
+}
+
+/* Interactive Mode Functions */
+void print_help() {
+    printf("TritJS Windows - Ternary Calculator (Interactive Mode)\n");
+    printf("Commands:\n");
+    printf("  add NUM1 NUM2    Add two ternary numbers\n");
+    printf("  sub NUM1 NUM2    Subtract NUM2 from NUM1\n");
+    printf("  mul NUM1 NUM2    Multiply two ternary numbers\n");
+    printf("  div NUM1 NUM2    Divide NUM1 by NUM2 (quotient)\n");
+    printf("  pow BASE EXP     BASE to the power EXP\n");
+    printf("  fact NUM         Factorial of NUM\n");
+    printf("  sqrt NUM         Square root (complex result)\n");
+    printf("  log3 NUM         Base-3 logarithm (complex result)\n");
+    printf("  sin NUM          Sine (real result)\n");
+    printf("  cos NUM          Cosine (real result)\n");
+    printf("  tan NUM          Tangent (real result)\n");
+    printf("  pi               Pi in base-81\n");
+    printf("  and NUM1 NUM2    Ternary AND\n");
+    printf("  or NUM1 NUM2     Ternary OR\n");
+    printf("  not NUM          Ternary NOT\n");
+    printf("  xor NUM1 NUM2    Ternary XOR\n");
+    printf("  help             Show this help\n");
+    printf("  exit             Exit the program\n");
+}
+
+int process_command(char* input) {
+    char* tokens[4] = {NULL};
+    int token_count = 0;
+    char* token = strtok(input, " \n");
+    while (token && token_count < 4) {
+        tokens[token_count++] = token;
+        token = strtok(NULL, " \n");
+    }
+
+    if (!tokens[0]) return 0;  // Empty input
+
+    if (strcmp(tokens[0], "exit") == 0) return -1;
+    if (strcmp(tokens[0], "help") == 0) {
+        print_help();
+        return 0;
+    }
+
+    T81BigInt *A = NULL, *B = NULL, *result = NULL;
+    T81Complex *c_result = NULL;
+
+    if (strcmp(tokens[0], "add") == 0 && token_count == 3) {
+        if (parse_trit_string(tokens[1], &A) || parse_trit_string(tokens[2], &B)) goto invalid;
+        if (tritjs_add_big(A, B, &result)) goto error;
+        char* res_str = NULL;
+        t81bigint_to_trit_string(result, &res_str);
+        printf("Result: %s\n", res_str);
+        free(res_str);
+    } else if (strcmp(tokens[0], "sub") == 0 && token_count == 3) {
+        if (parse_trit_string(tokens[1], &A) || parse_trit_string(tokens[2], &B)) goto invalid;
+        if (tritjs_subtract_big(A, B, &result)) goto error;
+        char* res_str = NULL;
+        t81bigint_to_trit_string(result, &res_str);
+        printf("Result: %s\n", res_str);
+        free(res_str);
+    } else if (strcmp(tokens[0], "mul") == 0 && token_count == 3) {
+        if (parse_trit_string(tokens[1], &A) || parse_trit_string(tokens[2], &B)) goto invalid;
+        if (tritjs_multiply_big(A, B, &result)) goto error;
+        char* res_str = NULL;
+        t81bigint_to_trit_string(result, &res_str);
+        printf("Result: %s\n", res_str);
+        free(res_str);
+    } else if (strcmp(tokens[0], "div") == 0 && token_count == 3) {
+        T81BigInt *quotient = NULL, *remainder = NULL;
+        if (parse_trit_string(tokens[1], &A) || parse_trit_string(tokens[2], &B)) goto invalid;
+        if (tritjs_divide_big(A, B, &quotient, &remainder)) goto error;
+        char* q_str = NULL, *r_str = NULL;
+        t81bigint_to_trit_string(quotient, &q_str);
+        t81bigint_to_trit_string(remainder, &r_str);
+        printf("Quotient: %s, Remainder: %s\n", q_str, r_str);
+        free(q_str);
+        free(r_str);
+        tritbig_free(quotient);
+        tritbig_free(remainder);
+    } else if (strcmp(tokens[0], "pow") == 0 && token_count == 3) {
+        if (parse_trit_string(tokens[1], &A) || parse_trit_string(tokens[2], &B)) goto invalid;
+        if (tritjs_power_big(A, B, &result)) goto error;
+        char* res_str = NULL;
+        t81bigint_to_trit_string(result, &res_str);
+        printf("Result: %s\n", res_str);
+        free(res_str);
+    } else if (strcmp(tokens[0], "fact") == 0 && token_count == 2) {
+        if (parse_trit_string(tokens[1], &A)) goto invalid;
+        if (tritjs_factorial_big(A, &result)) goto error;
+        char* res_str = NULL;
+        t81bigint_to_trit_string(result, &res_str);
+        printf("Result: %s\n", res_str);
+        free(res_str);
+    } else if (strcmp(tokens[0], "sqrt") == 0 && token_count == 2) {
+        if (parse_trit_string(tokens[1], &A)) goto invalid;
+        if (tritjs_sqrt_complex(A, 0, &c_result)) goto error;
+        char* real_str = NULL, *imag_str = NULL;
+        t81bigint_to_trit_string(&c_result->real, &real_str);
+        t81bigint_to_trit_string(&c_result->imag, &imag_str);
+        printf("Result: %s + %si\n", real_str, imag_str);
+        free(real_str);
+        free(imag_str);
+    } else if (strcmp(tokens[0], "log3") == 0 && token_count == 2) {
+        if (parse_trit_string(tokens[1], &A)) goto invalid;
+        if (tritjs_log3_complex(A, 0, &c_result)) goto error;
+        char* real_str = NULL, *imag_str = NULL;
+        t81bigint_to_trit_string(&c_result->real, &real_str);
+        t81bigint_to_trit_string(&c_result->imag, &imag_str);
+        printf("Result: %s + %si\n", real_str, imag_str);
+        free(real_str);
+        free(imag_str);
+    } else if (strcmp(tokens[0], "sin") == 0 && token_count == 2) {
+        if (parse_trit_string(tokens[1], &A)) goto invalid;
+        if (tritjs_sin_complex(A, 0, &c_result)) goto error;
+        char* real_str = NULL;
+        t81bigint_to_trit_string(&c_result->real, &real_str);
+        printf("Result: %s\n", real_str);
+        free(real_str);
+    } else if (strcmp(tokens[0], "cos") == 0 && token_count == 2) {
+        if (parse_trit_string(tokens[1], &A)) goto invalid;
+        if (tritjs_cos_complex(A, 0, &c_result)) goto error;
+        char* real_str = NULL;
+        t81bigint_to_trit_string(&c_result->real, &real_str);
+        printf("Result: %s\n", real_str);
+        free(real_str);
+    } else if (strcmp(tokens[0], "tan") == 0 && token_count == 2) {
+        if (parse_trit_string(tokens[1], &A)) goto invalid;
+        if (tritjs_tan_complex(A, 0, &c_result)) goto error;
+        char* real_str = NULL;
+        t81bigint_to_trit_string(&c_result->real, &real_str);
+        printf("Result: %s\n", real_str);
+        free(real_str);
+    } else if (strcmp(tokens[0], "pi") == 0 && token_count == 1) {
+        int len, *pi_val;
+        if (tritjs_pi(&len, &pi_val)) goto error;
+        printf("Pi (base-81 digits): ");
+        for (int i = len - 1; i >= 0; i--) printf("%d", pi_val[i]);
+        printf("\n");
+        free(pi_val);
+    } else if (strcmp(tokens[0], "and") == 0 && token_count == 3) {
+        if (parse_trit_string(tokens[1], &A) || parse_trit_string(tokens[2], &B)) goto invalid;
+        if (tritjs_logical_and(A, B, &result)) goto error;
+        char* res_str = NULL;
+        t81bigint_to_trit_string(result, &res_str);
+        printf("Result: %s\n", res_str);
+        free(res_str);
+    } else if (strcmp(tokens[0], "or") == 0 && token_count == 3) {
+        if (parse_trit_string(tokens[1], &A) || parse_trit_string(tokens[2], &B)) goto invalid;
+        if (tritjs_logical_or(A, B, &result)) goto error;
+        char* res_str = NULL;
+        t81bigint_to_trit_string(result, &res_str);
+        printf("Result: %s\n", res_str);
+        free(res_str);
+    } else if (strcmp(tokens[0], "not") == 0 && token_count == 2) {
+        if (parse_trit_string(tokens[1], &A)) goto invalid;
+        if (tritjs_logical_not(A, &result)) goto error;
+        char* res_str = NULL;
+        t81bigint_to_trit_string(result, &res_str);
+        printf("Result: %s\n", res_str);
+        free(res_str);
+    } else if (strcmp(tokens[0], "xor") == 0 && token_count == 3) {
+        if (parse_trit_string(tokens[1], &A) || parse_trit_string(tokens[2], &B)) goto invalid;
+        if (tritjs_logical_xor(A, B, &result)) goto error;
+        char* res_str = NULL;
+        t81bigint_to_trit_string(result, &res_str);
+        printf("Result: %s\n", res_str);
+        free(res_str);
+    } else {
+        printf("Invalid command. Type 'help' for assistance.\n");
+    }
+
+    tritbig_free(A);
+    tritbig_free(B);
+    tritbig_free(result);
+    if (c_result) {
+        tritbig_free(&c_result->real);
+        tritbig_free(&c_result->imag);
+        free(c_result);
+    }
+    return 0;
+
+invalid:
+    printf("Error: Invalid ternary input\n");
+    goto cleanup;
+error:
+    printf("Error: Operation failed\n");
+cleanup:
+    tritbig_free(A);
+    tritbig_free(B);
+    tritbig_free(result);
+    if (c_result) {
+        tritbig_free(&c_result->real);
+        tritbig_free(&c_result->imag);
+        free(c_result);
+    }
+    return 0;
+}
+
+/* Main Function with Interactive Mode */
+int main() {
+    audit_log = fopen("tritjs_audit.log", "a");
+    if (!audit_log) audit_log = stderr;
+
+    printf("Welcome to TritJS Windows - Ternary Calculator\n");
+    printf("Type 'help' for commands or 'exit' to quit.\n");
+
+    char input[MAX_INPUT];
+    while (1) {
+        printf("> ");
+        if (!fgets(input, MAX_INPUT, stdin)) {
+            printf("Input error. Exiting...\n");
+            break;
+        }
+
+        int result = process_command(input);
+        if (result == -1) break;  // Exit command
+    }
+
+    if (audit_log != stderr) fclose(audit_log);
+    return 0;
+}

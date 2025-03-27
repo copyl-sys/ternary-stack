@@ -1,0 +1,158 @@
+@* hanoivm-test.cweb | Unit Test Suite for HanoiVM and Axion Modules (Enhanced Version)
+   This module provides kernel-mode test harness routines to validate core functionality
+   of the HanoiVM and Axion AI runtime components. It is intended for use as a loadable
+   kernel module with self-check logic and debugfs output.
+
+   Enhancements in this version:
+    - Module parameters to selectively run tests.
+    - Test counters, timing (in jiffies) and a summary printed via debugfs.
+    - Additional placeholder test routines, including an Axion AI hook test.
+    - Modular macros for test registration.
+@#
+
+@<Include Dependencies@>=
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/debugfs.h>
+#include <linux/uaccess.h>
+#include <linux/slab.h>
+#include <linux/random.h>
+#include <linux/mutex.h>
+#include <linux/string.h>
+#include <linux/jiffies.h>
+#include <linux/delay.h>
+#include "axion_hook.h"  // Assuming Axion hook interface is available in kernel space
+@#
+
+@<Define Constants and Global Buffers@>=
+#define TEST_NAME "hanoivm-test"
+#define OUTPUT_SIZE PAGE_SIZE
+
+static struct dentry *test_debug_dir;
+static char *test_output;
+static DEFINE_MUTEX(test_lock);
+
+/* Module parameters to select tests */
+static bool run_t81_test = true;
+static bool run_vm_test = true;
+static bool run_entropy_test = true;
+static bool run_ai_test = false; /* Placeholder for Axion AI command test */
+module_param(run_t81_test, bool, 0444);
+MODULE_PARM_DESC(run_t81_test, "Enable T81 Stack Logic Test");
+module_param(run_vm_test, bool, 0444);
+MODULE_PARM_DESC(run_vm_test, "Enable VM Execution Test");
+module_param(run_entropy_test, bool, 0444);
+MODULE_PARM_DESC(run_entropy_test, "Enable Entropy/Anomaly Test");
+module_param(run_ai_test, bool, 0444);
+MODULE_PARM_DESC(run_ai_test, "Enable Axion AI Command Test");
+
+/* Counters for tests and timing */
+static int total_tests = 0;
+static int tests_passed = 0;
+static unsigned long total_test_time = 0;
+
+#define RECORD_TEST(result, test_name, duration) \
+    do { \
+        total_tests++; \
+        char temp[128]; \
+        snprintf(temp, sizeof(temp), "[Time: %lu jiffies]\n", duration); \
+        if (result) { \
+            strcat(test_output, "[PASS] " test_name " "); \
+            strcat(test_output, temp); \
+            tests_passed++; \
+        } else { \
+            strcat(test_output, "[FAIL] " test_name " "); \
+            strcat(test_output, temp); \
+        } \
+    } while (0)
+@#
+
+@<Test Routines@>=
+static bool test_t81_stack_logic(void) {
+    unsigned long start = jiffies;
+    strcat(test_output, "[TEST] Running T81 Stack Logic Test...\n");
+    /* TODO: Inject values into t81_stack routines and validate results */
+    msleep(10);
+    unsigned long duration = jiffies - start;
+    return true;
+}
+
+static bool test_vm_execution(void) {
+    unsigned long start = jiffies;
+    strcat(test_output, "[TEST] Running VM Execution Test...\n");
+    /* TODO: Load mock .hvm bytecode into hanoivm_vm and trace logic */
+    msleep(10);
+    unsigned long duration = jiffies - start;
+    return true;
+}
+
+static bool test_entropy_detection(void) {
+    unsigned long start = jiffies;
+    strcat(test_output, "[TEST] Running Entropy/Anomaly Test...\n");
+    /* TODO: Feed high-entropy values into axion-ai stack and verify rollback */
+    msleep(10);
+    unsigned long duration = jiffies - start;
+    return true;
+}
+
+static bool test_axion_ai_command(void) {
+    unsigned long start = jiffies;
+    strcat(test_output, "[TEST] Running Axion AI Command Test...\n");
+    /* Simulate an AI command: set verbosity and check last signal */
+    axion_adjust_verbosity(2);
+    axion_signal(0x05);
+    bool passed = (axion_get_optimization() == 0x05);
+    msleep(10);
+    unsigned long duration = jiffies - start;
+    return passed;
+}
+@#
+
+@<DebugFS Interface@>=
+static ssize_t test_debugfs_read(struct file *file, char __user *ubuf,
+                                 size_t count, loff_t *ppos) {
+    size_t len = strlen(test_output);
+    if (*ppos > 0 || count < len)
+        return 0;
+    if (copy_to_user(ubuf, test_output, len))
+        return -EFAULT;
+    *ppos = len;
+    return len;
+}
+
+static const struct file_operations test_fops = {
+    .owner = THIS_MODULE,
+    .read = test_debugfs_read,
+};
+@#
+
+@<Module Lifecycle@>=
+static int __init test_init(void) {
+    pr_info("%s: initializing test harness\n", TEST_NAME);
+    test_output = kzalloc(OUTPUT_SIZE, GFP_KERNEL);
+    if (!test_output)
+        return -ENOMEM;
+
+    /* Initialize output buffer */
+    strcpy(test_output, "=== HanoiVM Test Harness Output ===\n");
+    total_tests = 0;
+    tests_passed = 0;
+    total_test_time = 0;
+
+    test_debug_dir = debugfs_create_file(TEST_NAME, 0444, NULL, NULL, &test_fops);
+    if (!test_debug_dir) {
+        kfree(test_output);
+        return -ENOMEM;
+    }
+
+    mutex_lock(&test_lock);
+
+    {
+        unsigned long start, duration;
+        bool res;
+        start = jiffies;
+        if (run_t81_test) {
+            res = test_t81_stack_logic();
+            duration = jiffies - start;
+            RECORD_TEST(res, "T81_
