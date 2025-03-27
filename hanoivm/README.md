@@ -1,62 +1,72 @@
 # 🚀 HanoiVM — Recursive Ternary Virtual Machine
 
-**HanoiVM** is a recursive, AI-augmented **ternary virtual machine** built on a symbolic base-81 architecture. It is the execution core of the **Axion + T81Lang** ecosystem, enabling stack-tier promotion, symbolic AI opcodes, and entropy-aware transformations across three levels of logic:
+**HanoiVM** is a recursive, AI-augmented **ternary virtual machine** built on a symbolic base-81 architecture. It serves as the execution core of the **Axion + T81Lang** ecosystem, enabling stack-tier promotion, symbolic AI opcodes, and entropy-aware transformations across three logic levels:
 
-- 🔹 `T81`: 81-bit operand logic (register-like)
-- 🔸 `T243`: Symbolic BigInt + FSM state logic
-- 🔺 `T729`: Tensor-based AI macros with semantic dispatch
+- 🔹 **T81**: 81-bit operand logic (register-like)
+- 🔸 **T243**: Symbolic BigInt + FSM state logic
+- 🔺 **T729**: Tensor-based AI macros with semantic dispatch, including our new **Symbolic AI Graph IR (T729LogicGraph)**
 
-Designed for research, language development, and future ternary hardware acceleration, **HanoiVM** is literate, modular, and fully recursive.
+Designed for research, language development, and future ternary hardware acceleration, **HanoiVM** is a literate, modular, and fully recursive platform with integrated debugging, telemetry, and cross-language support.
 
 ---
 
 ## 🔍 Core Features
 
-- 🔢 **Ternary Operand Architecture**:
-  - Supports `uint81_t`, `T243BigInt`, and `T729Tensor` data types
-- 🌀 **Recursive Stack Tiering**:
-  - Auto-promotes through `T81 → T243 → T729` based on depth/entropy
-- 🧠 **Symbolic AI Execution**:
-  - Includes FSM logic, pattern recognition, entropy-driven dispatch
-  - AI macros: `TNN_ACCUM`, `T81_MATMUL`, `T729Intent`, `T729MetaOpcode`
-- 🧬 **Tensor Engine + Holomorphic Support**:
-  - `DOT`, `SLICE`, `TRANSPOSE`, `RESHAPE`, `CLONE`, `PRINT`, `FFT`
-- ⚙️ **Axion Kernel AI**:
-  - AI introspection + rollback via NLP-style commands (`optimize`, `snapshot`)
-  - Integrated Axion telemetry, logs, entropy weighting
-- ⚡ **GPU Acceleration via GAIA**:
-  - AMD: `gaia_handle_request.cweb` (HIP)
-  - NVIDIA: `cuda_handle_request.cu` (CUDA)
-- 🧩 **Cross-Language FFI Support**:
-  - `hanoivm_ffi.cweb` provides a C ABI interface
-  - Shared library (`libhanoivm_ffi.so`) allows Rust, Python, C++ integration
-- 🖼️ **3D Visualization via Looking Glass**:
-  - `FrameSceneBuilder.cweb` renders recursion traces in jMonkeyEngine
-  - Axion overlays, ternary geometry, and entropy pulse animation
-- 📄 **Literate Codebase (`.cweb`)**:
-  - Every module is self-documenting and extractable via `cweave`/`ctangle`
-- 🧪 **Disassembler + Test Infrastructure**:
-  - Disassembles `.hvm` with symbolic introspection
-  - CI-compatible tests + kernel-mode driver for system-level validation
+- **Ternary Operand Architecture**  
+  Supports `uint81_t`, `T243BigInt`, and `T729Tensor` data types.
+
+- **Recursive Stack Tiering**  
+  Auto-promotes through `T81 → T243 → T729` based on recursion depth and entropy metrics.
+
+- **Symbolic AI Execution**  
+  - Implements FSM logic, pattern recognition, and entropy-driven dispatch.
+  - Features AI macros such as `TNN_ACCUM`, `T81_MATMUL`, `T729_INTENT`, and `T729_META_EXEC`.
+  - Now enhanced with our **Symbolic AI Graph IR (T729LogicGraph)** for advanced optimization and introspection.
+
+- **Tensor Engine & Holomorphic Support**  
+  Provides operations like `DOT`, `SLICE`, `TRANSPOSE`, `RESHAPE`, `CLONE`, `PRINT`, and FFT for multidimensional signal processing.
+
+- **Axion Kernel AI**  
+  - Offers AI introspection, rollback, and optimization via NLP-style commands (`optimize`, `snapshot`).
+  - Integrated telemetry, logging, and entropy weighting.
+
+- **GPU Acceleration via GAIA**  
+  - NVIDIA: `cuda_handle_request.cu`
+  - AMD: `gaia_handle_request.cweb`
+
+- **Cross-Language FFI Support**  
+  - The FFI layer in `hanoivm_ffi.cweb` provides a C ABI interface.
+  - Shared library (`libhanoivm_ffi.so`) allows integration with Rust, Python, and C++.
+
+- **3D Visualization via Looking Glass**  
+  - Uses `FrameSceneBuilder.cweb` for rendering recursion traces (e.g., with jMonkeyEngine).
+  - Includes Axion overlays, ternary geometry, and entropy pulse animations.
+
+- **Literate Codebase**  
+  - All modules are written as `.cweb` sources, making the codebase self-documenting and extractable with `cweave`/`ctangle`.
+
+- **Disassembler & Test Infrastructure**  
+  - Disassembles `.hvm` bytecode with symbolic introspection.
+  - CI-compatible tests and kernel-mode driver support for system-level validation.
 
 ---
 
 ## 📦 T81Lang Compiler Stack
 
-The T81Lang toolchain is now fully integrated with HanoiVM:
+The T81Lang toolchain is fully integrated with HanoiVM:
 
-- ✅ **Lexer + Parser** → AST via `t81lang_parser.cweb`
-- ✅ **Semantic Analyzer** with scope/symbol resolution
-- ✅ **Intermediate Representation (IR)** with symbolic ops
-- ✅ **.hvm Emitter** for virtual machine execution
-- ✅ **HVM Interpreter** with register-based runtime
-- ✅ **CLI Compiler** via `t81lang_compiler.cweb`
+- **Lexer & Parser**: Implemented in `t81lang_parser.cweb`
+- **Semantic Analyzer**: Handles scope and symbol resolution
+- **Intermediate Representation (IR)**: Generates symbolic ops
+- **.hvm Emitter**: Converts IR into executable bytecode
+- **HVM Interpreter**: Executes bytecode using a register-based runtime
+- **CLI Compiler**: Provided via `t81lang_compiler.cweb`
 
 ---
 
 ## 🔗 FFI & Cross-Language Integration
 
-HanoiVM now supports **multi-language embedding** using the C-compatible FFI layer.
+HanoiVM supports multi-language embedding through a robust FFI layer.
 
 ### 🔧 Compile the Shared Library:
 
@@ -68,16 +78,16 @@ make libhanoivm_ffi.so
 
 - `hvm_create()` / `hvm_destroy()`
 - `hvm_stack_push()` / `hvm_stack_pop()` / `hvm_stack_peek()`
-- `hvm_execute()` for virtual machine execution
+- `hvm_execute()` for executing bytecode
 - `hvm_set_event_callback()` for custom logging or AI hooks
 
-### 🧩 Use In:
+These APIs enable integration with:
 
-- **Rust** via `bindgen` or `cxx`
-- **Python** via `ctypes` or `cffi`
-- **C++** via native linkage
+- **Rust** (via `bindgen` or `cxx`)
+- **Python** (via `ctypes` or `cffi`)
+- **C++** (via native linkage)
 
-See `hanoivm_ffi.cweb` for full documentation.
+Refer to `hanoivm_ffi.cweb` for complete documentation.
 
 ---
 
@@ -85,22 +95,23 @@ See `hanoivm_ffi.cweb` for full documentation.
 
 ```bash
 src/
-├── hanoivm_vm.cweb               # Main interpreter engine
+├── hanoivm_vm.cweb               # Enhanced VM Execution Core with logging/telemetry and integration hooks
 ├── hanoivm_ffi.cweb              # FFI interface (→ libhanoivm_ffi.so)
-├── advanced_ops.cweb             # TNN, matrix, AI primitive opcodes
-├── advanced_ops_ext.cweb         # T243/T729 extensions: FSM, intent, FFT
-├── t243bigint.cweb               # BigInt math in ternary (T243)
-├── t729tensor.cweb               # Tensor logic for T729 tier
-├── t81_patterns.cweb             # Symbolic AI patterns & dispatch
-├── t81recursion.cweb             # Canonical ternary recursion patterns
-├── gaia_handle_request.cweb      # HIP symbolic GPU backend
-├── cuda_handle_request.cu        # CUDA symbolic tensor support
+├── advanced_ops.cweb             # Core AI primitive opcodes and matrix operations
+├── advanced_ops_ext.cweb         # T243/T729 extensions: FSM, intent, FFT, and entropy ops
+├── t243bigint.cweb               # BigInt math for ternary (T243)
+├── t729tensor.cweb               # Tensor operations for T729 tier
+├── t729logicgraph.cweb           # Symbolic AI Graph IR for advanced optimization and introspection
+├── t81_patterns.cweb             # Symbolic AI pattern recognition and dispatch
+├── t81recursion.cweb             # Canonical recursion primitives for ternary execution
+├── gaia_handle_request.cweb      # HIP-based GPU backend for symbolic ops
+├── cuda_handle_request.cu        # CUDA-based GPU backend for tensor operations
 ├── axion-ai.cweb                 # Kernel AI optimizer and rollback hooks
-├── disassembler.cweb             # Human-readable `.hvm` introspector
+├── disassembler.cweb             # `.hvm` disassembler with symbolic introspection
 ├── recursive_tier_execution.cweb # Tier transition driver (T81 → T729)
-├── recursion_exporter.cweb       # Export symbolic trace to `.t81viz`
-├── FrameSceneBuilder.cweb        # 3D recursion visualizer with jMonkeyEngine
-├── tisc_backend.cweb             # TISC backend compiler
+├── recursion_exporter.cweb       # Exports symbolic recursion trace to `.t81viz`
+├── FrameSceneBuilder.cweb        # 3D recursion visualizer with jMonkeyEngine integration
+├── tisc_backend.cweb             # TISC backend compiler for symbolic optimizations
 ```
 
 ---
@@ -145,13 +156,13 @@ bazel run //:recursive_tier_execution -- --max-depth=36
   - AMD: `gaia_handle_request.cweb`
 
 - **Ternary AI Macros**:
-  - `T729Intent` for symbolic AI behavior
-  - `T729MetaOpcode` for entropy-weighted logic switching
-  - `T729HoloTensor` for FFT and multi-dimensional signal composition
+  - `T729_INTENT` for symbolic AI behavior
+  - `T729_META_EXEC` for conditional, entropy-weighted execution
+  - `T729HoloTensor` for FFT and multidimensional signal composition
 
 - **Signal Control**:
-  - Axion tracks recursive entropy, triggers promotion/demotion
-  - `rollback`, `optimize`, `snapshot` available via NLP hooks
+  - Axion AI tracks recursive entropy, triggering promotion/demotion
+  - NLP commands (`rollback`, `optimize`, `snapshot`) available for runtime adjustments
 
 ---
 
@@ -163,7 +174,7 @@ bazel run //:recursive_tier_execution -- --max-depth=36
 | `T243_STATE_ADV`      | T243   | FSM state vector logic                |
 | `T729_INTENT`         | T729   | Dispatch symbolic AI intent           |
 | `T729_HOLO_FFT`       | T729   | FFT over holomorphic ternary tensor   |
-| `T729_META_EXEC`      | T729   | Meta-instruction, conditional entropy |
+| `T729_META_EXEC`      | T729   | Meta-instruction for conditional entropy|
 
 ---
 
