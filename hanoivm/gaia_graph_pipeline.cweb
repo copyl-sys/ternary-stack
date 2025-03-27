@@ -2,19 +2,19 @@
 This document demonstrates the integration of a GPU-accelerated graph pipeline within Hanoivm.
 It includes an expanded internal graph structure and additional utility functions for:
 - Graph creation and printing.
+- Converting alternative internal graph representations into the hvm_graph format.
 - Profiling the GPU execution.
-- Converting internal graph representations.
 - Running the GPU graph pipeline.
 
 Recommendations:
 1. **Interface Integration:**  
-   Use the conversion and creation functions to adapt Hanoivm's native graph data into the hvm_graph format.
+   Use the conversion functions to adapt Hanoivm's native graph data into the hvm_graph format.
 2. **Profiling & Debugging:**  
    Use the profiling function to capture execution time and the print function for debugging.
 3. **Modular Design:**  
    The functions encapsulate GPU execution details from higher-level Hanoivm logic, allowing for future expansion.
 4. **Future Expansion:**  
-   Adapt the conversion function to handle more complex internal representations if Hanoivm evolves.
+   Enhance the conversion functions as Hanoivm's internal representations evolve to support more complex graph structures.
 
 @c
 #include <stdio.h>
@@ -109,6 +109,44 @@ void print_hvm_graph(const hvm_graph *graph) {
     }
 }
 
+@* --- Conversion Functions --- 
+These functions convert alternative internal graph representations to the hvm_graph format.
+For demonstration, we assume an internal graph is represented as follows:
+@c
+typedef struct {
+    int numVertices;
+    int numEdges;
+    struct {
+        int u;
+        int v;
+    } *edgeArray; // Each edge stored as a structure with fields u and v.
+} internal_graph;
+
+@* convert_internal_to_hvm.
+Converts an internal_graph to an hvm_graph.
+@c
+hvm_graph *convert_internal_to_hvm(const internal_graph *intGraph) {
+    // Allocate hvm_graph using the number of vertices and edges from the internal graph.
+    int totalEdges = intGraph->numEdges;
+    // Allocate temporary edge array.
+    int *tempEdges = (int *)malloc(totalEdges * 2 * sizeof(int));
+    if (!tempEdges) {
+        fprintf(stderr, "Error allocating temporary edge array.\n");
+        exit(EXIT_FAILURE);
+    }
+    // Convert each internal edge structure into two integers.
+    for (int i = 0; i < totalEdges; i++) {
+        tempEdges[2 * i] = intGraph->edgeArray[i].u;
+        tempEdges[2 * i + 1] = intGraph->edgeArray[i].v;
+    }
+    // Create an hvm_graph using the converted edge list.
+    hvm_graph *graph = create_hvm_graph(intGraph->numVertices, totalEdges, tempEdges);
+    free(tempEdges);
+    return graph;
+}
+
+@* --- End Conversion Functions ---
+
 @* profile_gaia_graph_pipeline.
 Profiles the execution of the GPU graph pipeline by measuring the time taken to run the pipeline.
 It uses CUDA events for high-resolution timing.
@@ -119,9 +157,6 @@ float profile_gaia_graph_pipeline(const hvm_graph *graph, int *vertex_degrees) {
     CUDA_CALL(cudaEventCreate(&stop));
 
     CUDA_CALL(cudaEventRecord(start, 0));
-    // Execute the GPU graph pipeline.
-    // (Calls the run_gaia_graph_pipeline function defined below.)
-    // Note: The vertex_degrees array should be pre-allocated by the caller.
     {
         int *d_edges, *d_degrees;
         size_t edgesSize = graph->numEdges * 2 * sizeof(int);
@@ -159,8 +194,6 @@ A wrapper function that executes the GPU graph pipeline using the provided hvm_g
 It populates the vertex_degrees array with the computed degrees.
 @c
 void run_gaia_graph_pipeline(const hvm_graph *graph, int *vertex_degrees) {
-    // This function directly calls the profiling block without measuring time.
-    // Use profile_gaia_graph_pipeline if timing is needed.
     int *d_edges, *d_degrees;
     size_t edgesSize = graph->numEdges * 2 * sizeof(int);
     size_t degreesSize = graph->numVertices * sizeof(int);
@@ -184,11 +217,14 @@ void run_gaia_graph_pipeline(const hvm_graph *graph, int *vertex_degrees) {
 }
 
 @* Main Function.
-Demonstrates integration by creating a sample hvm_graph, printing its details,
-running the GPU graph pipeline, and profiling its execution.
+Demonstrates integration by:
+- Creating a sample hvm_graph.
+- Converting an alternative internal graph to hvm_graph.
+- Printing graph details.
+- Running and profiling the GPU graph pipeline.
 @c
 int main(void) {
-    // Sample graph: 5 vertices, 6 edges.
+    // Sample graph using an edge array representation.
     int sample_edges[] = {
         0, 1,  // Edge from vertex 0 to vertex 1.
         0, 2,  // Edge from vertex 0 to vertex 2.
@@ -198,37 +234,58 @@ int main(void) {
         3, 4   // Edge from vertex 3 to vertex 4.
     };
 
-    // Create the graph using the dynamic allocation function.
+    // Create the hvm_graph using the dynamic allocation function.
     hvm_graph *sample_graph = create_hvm_graph(5, 6, sample_edges);
     print_hvm_graph(sample_graph);
+
+    // Simulate an alternative internal graph representation.
+    typedef struct {
+        int u;
+        int v;
+    } edge_t;
+    typedef struct {
+        int numVertices;
+        int numEdges;
+        edge_t *edgeArray;
+    } internal_graph;
+    
+    // Create a sample internal_graph.
+    edge_t internal_edges[] = {
+        {0, 1}, {0, 2}, {1, 2}, {1, 3}, {2, 3}, {3, 4}
+    };
+    internal_graph intGraph;
+    intGraph.numVertices = 5;
+    intGraph.numEdges = 6;
+    intGraph.edgeArray = internal_edges;
+    
+    // Convert the internal_graph to an hvm_graph.
+    hvm_graph *converted_graph = convert_internal_to_hvm(&intGraph);
+    printf("\nConverted internal_graph to hvm_graph:\n");
+    print_hvm_graph(converted_graph);
 
     // Allocate memory for vertex degrees.
     int *vertex_degrees = (int *)malloc(sample_graph->numVertices * sizeof(int));
     if (!vertex_degrees) {
         fprintf(stderr, "Error allocating vertex degrees array.\n");
         free_hvm_graph(sample_graph);
+        free_hvm_graph(converted_graph);
         exit(EXIT_FAILURE);
     }
 
-    // Run the GPU graph pipeline.
+    // Run the GPU graph pipeline on the sample graph.
     run_gaia_graph_pipeline(sample_graph, vertex_degrees);
-
-    // Print the computed vertex degrees.
-    printf("Vertex degrees (without profiling):\n");
+    printf("\nVertex degrees (without profiling) on sample_graph:\n");
     for (int i = 0; i < sample_graph->numVertices; i++) {
         printf("Vertex %d: %d\n", i, vertex_degrees[i]);
     }
 
     // Profile the GPU graph pipeline.
-    // Reset the vertex_degrees array for profiling.
     for (int i = 0; i < sample_graph->numVertices; i++) {
         vertex_degrees[i] = 0;
     }
     float elapsedTime = profile_gaia_graph_pipeline(sample_graph, vertex_degrees);
-    printf("GPU graph pipeline execution time: %.3f ms\n", elapsedTime);
-
-    // Print the vertex degrees after profiling.
-    printf("Vertex degrees (after profiling):\n");
+    printf("\nGPU graph pipeline execution time: %.3f ms\n", elapsedTime);
+    printf("Vertex degrees (after profiling) on sample_graph:\n");
     for (int i = 0; i < sample_graph->numVertices; i++) {
         printf("Vertex %d: %d\n", i, vertex_degrees[i]);
     }
@@ -236,6 +293,7 @@ int main(void) {
     // Cleanup.
     free(vertex_degrees);
     free_hvm_graph(sample_graph);
+    free_hvm_graph(converted_graph);
 
     return 0;
 }
