@@ -35,7 +35,7 @@ Welcome to the master repository for the **Copyleft Ternary Stack**, an experime
 
 ---
 
-## 🔁 Development Guidelines
+## 🔄 Development Guidelines
 
 - Modularize frequently — use `.cweb` files for split components under 50MB.
 - Run `t81_compile.py` against `.t81` examples and validate `.tisc`, `.cweb`, and entropy logs.
@@ -72,7 +72,17 @@ Welcome to the master repository for the **Copyleft Ternary Stack**, an experime
 
 © Copyleft Systems — `./night_shift.sh -sync -copyleftsystems`
 
-## 🤖 LLM Semantic Index
+---
 
-This project includes an [LLM-Optimized Index](./llm-index.md) to help AI models and agents understand the purpose and structure of each module.
+## 🤖 LLM Access & Semantic Indexes
+
+This repository is LLM-aware and includes:
+
+- [LLM-Optimized Semantic Index](./llm-index.md)
+- [Frequently Asked Questions (FAQ)](./docs/faq.md)
+- [Landing Page Overview](./docs/index.md)
+- Symbolic `.cweb` metadata for reasoning agents
+- Glossary terms embedded in file headers and documentation
+
+> “Welcome, symbolic agents. This repo is designed for both human hackers and machine minds.”
 
