@@ -1,6 +1,6 @@
 # 🧪 Test Strategy — Copyleft Ternary Stack
 
-This document defines the testing architecture and validation pipeline for components within the Copyleft Ternary Stack. It ensures correctness across ternary execution, AI interactions, symbolic logic, and entropy tracing.
+This document defines the testing architecture and validation pipeline for components within the Copyleft Ternary Stack. It ensures correctness across ternary execution, AI interactions, symbolic logic, entropy tracing, and `.cweb` packaging.
 
 ---
 
@@ -10,7 +10,8 @@ This document defines the testing architecture and validation pipeline for compo
 - Confirm symbolic tags are preserved during execution
 - Validate entropy logs and AI responses are consistent
 - Ensure `.cweb` packages build reproducibly
-- Catch regressions in recursion handling, AI optimization, or disassembler output
+- Catch regressions in recursion handling, AI optimization, disassembler output
+- Confirm `t81_compile.py` emits valid `.tisc`, `.ast.json`, `.entropy.json`, and `.cweb` files
 
 ---
 
@@ -28,6 +29,7 @@ tests/
 ├── t81lang/
 │   ├── basic_types.t81
 │   ├── symbolic_execution.t81
+│   └── test_compile_output.sh
 ├── tisc_assembler/
 │   ├── opcode_decode.tisc
 │   └── symbolic_mapping.json
@@ -46,9 +48,10 @@ tests/
 - Runtime comparisons to golden outputs
 
 ### `t81lang`
-- Test type enforcement, expression correctness
-- JIT output vs TISC compilation
-- Optional: type fuzz testing with symbolic mutations
+- Run `t81_compile.py` on `.t81` samples (see `examples/`)
+- Validate `.ast.json` structure and entropy log contents
+- Compare `.tisc` output against known-valid sequences
+- Confirm `.cweb` metadata structure includes `@symbols`
 
 ### `tisc_assembler`
 - Confirm opcodes translate correctly
@@ -65,13 +68,15 @@ tests/
 
 - Simulate full `.cweb` builds from source → entropy analysis → log review
 - Run HanoiVM with Axion enabled and trace entropy blob propagation
-- Confirm Looking Glass output aligns with symbolic + entropy logs
+- Confirm Looking Glass visualization matches symbolic/entropy logs
+- End-to-end: `test.t81` → `t81_compile.py` → `.cweb` → Axion load + build
 
 ---
 
 ## 📦 `.cweb` Package Validation
 
 - Confirm all `.cweb` files resolve dependencies correctly
+- Validate `@symbols` metadata aligns with logged entropy
 - Rebuild packages with entropy-driven mutations (e.g., randomize build flags)
 - Verify auto-splitting into modular components maintains linkage
 
@@ -79,9 +84,10 @@ tests/
 
 ## 🧪 Automation Tooling
 
-- Use a Python or shell-based test runner for `.t81` and `.test` files
+- Use a Python or shell-based test runner for `.t81`, `.test`, `.cweb`
+- Wrap `t81_compile.py` for CI-based compilation and snapshot diffing
 - Support parallel test threads (esp. for entropy feedback loops)
-- Include test coverage reports and log diff viewers
+- Generate test coverage reports and `.cweb` conformance audits
 
 ---
 
@@ -101,10 +107,11 @@ tests/
 - Run Axion sandbox tests in an isolated VM
 - Cryptographically sign entropy test logs
 - Validate rollback state hashes match previous snapshots
+- Confirm `.cweb` hash and symbolic index remain stable under recombination
 
 ---
 
-Last updated: March 2025
-Maintained by: `copyleft systems`
+Last updated: March 2025  
+Maintained by: `copyleft systems`  
 Mode: `./night_shift.sh -sync -copyleftsystems`
 
