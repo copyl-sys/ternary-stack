@@ -212,24 +212,24 @@ bazel run //:recursive_tier_execution -- --max-depth=36
 
 ---
 
-- **`.cwebpkg.md`**: Documentation related to the `.cweb` package system.
-- **`AI_METADATA.md`**: Details on AI-related metadata used within the project.
-- **`AXION_BLACKBOX.md`**: Information about the Axion black-box system.
-- **`AXION_PACKAGE_FORMAT.md`**: Specifications for the Axion package format.
-- **`Author.md`**: Information about the author(s) of the project.
-- **`AxionCWEB.md`**: Documentation on integrating Axion with `.cweb`.
-- **`CHANGELOG.md`**: Chronological list of changes and updates made to the project.
-- **`CONTRIBUTING.md`**: Guidelines and instructions for contributing to the project.
-- **`CWEB_STYLE_GUIDE.md`**: Style guide for writing `.cweb` files within the project.
-- **`FILESYSTEM.md`**: Documentation on the project's filesystem structure and organization.
-- **`GLOSSARY.md`**: Definitions of terms and concepts used throughout the project.
-- **`INTEGRATION.md`**: Guidelines and notes on integrating HanoiVM with other systems or components.
-- **`LLVM_GUIDE.md`**: Instructions and information on using LLVM within the project.
-- **`MANIFESTO.md`**: Declaration of the project's philosophy, goals, and structure.
-- **`README.md`**: Overview of the project, including usage instructions and features.
-- **`ROADMAP.md`**: Planned future developments and milestones for the project.
-- **`STATUS.md`**: Current status and progress of various components within the project.
-- **`TECHTREE.md`**: Technical tree outlining the capabilities and subsystems of HanoiVM.
+- **`.cwebpkg.md`**: Documentation related to the `.cweb` package system.
+- **`AI_METADATA.md`**: Details on AI-related metadata used within the project.
+- **`AXION_BLACKBOX.md`**: Information about the Axion black-box system.
+- **`AXION_PACKAGE_FORMAT.md`**: Specifications for the Axion package format.
+- **`Author.md`**: Information about the author(s) of the project.
+- **`AxionCWEB.md`**: Documentation on integrating Axion with `.cweb`.
+- **`CHANGELOG.md`**: Chronological list of changes and updates made to the project.
+- **`CONTRIBUTING.md`**: Guidelines and instructions for contributing to the project.
+- **`CWEB_STYLE_GUIDE.md`**: Style guide for writing `.cweb` files within the project.
+- **`FILESYSTEM.md`**: Documentation on the project's filesystem structure and organization.
+- **`GLOSSARY.md`**: Definitions of terms and concepts used throughout the project.
+- **`INTEGRATION.md`**: Guidelines and notes on integrating HanoiVM with other systems or components.
+- **`LLVM_GUIDE.md`**: Instructions and information on using LLVM within the project.
+- **`MANIFESTO.md`**: Declaration of the project's philosophy, goals, and structure.
+- **`README.md`**: Overview of the project, including usage instructions and features.
+- **`ROADMAP.md`**: Planned future developments and milestones for the project.
+- **`STATUS.md`**: Current status and progress of various components within the project.
+- **`TECHTREE.md`**: Technical tree outlining the capabilities and subsystems of HanoiVM.
 
 
 > 🧠 “Recursion is not just a structure — it’s the soul of ternary.”
