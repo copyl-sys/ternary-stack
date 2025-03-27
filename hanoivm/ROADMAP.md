@@ -77,6 +77,7 @@
 - [x] GPU acceleration backends: CUDA (`cuda_handle_request.cu`), ROCm (`gaia_handle_request.cweb`)
 - [x] FFT-based symbolic tensor operations (`T729HoloTensor`)
 - [x] PulseControl entropy visualization animations
+- [x] GPU Graph Pipeline Integration (gaia_graph_pipeline.cweb) with conversion functions, debugging & profiling utilities
 - [ ] GPU Graph Execution: `hipGraphLaunch`, `cuGraphExec` pipelines  
   *Milestones: Prototype pipeline demo, integration testing, performance benchmarks*
 - [ ] Symbolic AI Graph IR (`T729LogicGraph`)  
@@ -161,4 +162,5 @@
 - ✅ GPU acceleration active (CUDA/ROCm) with symbolic FFT  
 - ✅ Advanced developer tools and recursion visualization complete  
 - ✅ Portable FFI support for external language embedding (`libhanoivm_ffi.so`)  
-- 🔜 Immediate Next Focus: GPU graph pipelines, Project Looking Glass enhancements, LLVM IR optimization pipeline
+- ✅ GPU Graph Pipeline integration (gaia_graph_pipeline.cweb) with conversion functions  
+- 🔜 Immediate Next Focus: Project Looking Glass enhancements, LLVM IR optimization pipeline
