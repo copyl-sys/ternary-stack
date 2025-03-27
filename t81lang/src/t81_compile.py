@@ -1,0 +1,190 @@
+# T81Lang Parser + AST → TISC Backend with Symbolic Metadata, Entropy Tracker, and .cweb Generator
+# Language: Python 3.x
+
+import re
+import json
+
+# --- Token Specs ---
+KEYWORDS = {"let", "mut", "fn", "return"}
+TYPES = {"T81Int", "T81Float", "T81BigInt", "T81Fraction", "Symbol"}
+ANNOTATIONS = {"@entropy", "@tag"}
+
+TOKEN_SPEC = [
+    ("NUMBER",    r"[0-9]+t"),
+    ("SYMBOL",    r"[⍺-⍵βγδθσφψΩ]+"),
+    ("IDENT",     r"[a-zA-Z_][a-zA-Z0-9_]*"),
+    ("OP",        r"[+\-*/=<>!]"),
+    ("LPAREN",    r"\("),
+    ("RPAREN",    r"\)"),
+    ("LBRACE",    r"\{"),
+    ("RBRACE",    r"\}"),
+    ("COLON",     r":"),
+    ("ARROW",     r"->"),
+    ("SEMICOLON", r";"),
+    ("EQUAL",     r"="),
+    ("AT",        r"@[a-zA-Z_]+"),
+    ("FLOAT",     r"[0-9]+\.[0-9]+"),
+    ("WHITESPACE",r"\s+"),
+]
+
+tok_regex = '|'.join(f'(?P<{name}>{pattern})' for name, pattern in TOKEN_SPEC)
+
+# --- Tokenizer ---
+def tokenize(code):
+    tokens = []
+    for match in re.finditer(tok_regex, code):
+        kind = match.lastgroup
+        value = match.group()
+        if kind != "WHITESPACE":
+            tokens.append((kind, value))
+    return tokens
+
+# --- AST Node ---
+class ASTNode:
+    def __init__(self, node_type, **kwargs):
+        self.node_type = node_type
+        self.fields = kwargs
+
+    def to_dict(self):
+        return {"type": self.node_type, **self.fields}
+
+# --- Entropy Tracker ---
+entropy_log = []
+
+def log_entropy(name, entropy, tag):
+    entropy_log.append({
+        "symbol": name,
+        "entropy": entropy,
+        "tag": tag
+    })
+
+# --- Parser Helpers ---
+def parse_expression(tokens):
+    if len(tokens) == 1:
+        return ASTNode("Literal", value=tokens[0][1])
+    elif len(tokens) == 3 and tokens[1][0] == "OP":
+        return ASTNode("BinaryExpr", left=tokens[0][1], op=tokens[1][1], right=tokens[2][1])
+    return ASTNode("Unknown")
+
+# --- Statement Parsers ---
+def parse_let_statement(tokens):
+    assert tokens[0][1] == "let"
+    name = tokens[1][1]
+    type_hint = tokens[3][1] if tokens[2][0] == "COLON" else None
+    expr_tokens = tokens[5:-1]
+    expr = parse_expression(expr_tokens)
+
+    entropy = None
+    tag = None
+    for i, t in enumerate(tokens):
+        if t[1] == "@entropy" and tokens[i+1][0] == "LPAREN":
+            entropy = float(tokens[i+2][1])
+        elif t[1] == "@tag" and tokens[i+1][0] == "LPAREN":
+            tag = tokens[i+2][1].strip('"')
+
+    if entropy or tag:
+        log_entropy(name, entropy, tag)
+
+    return ASTNode("Let", name=name, type=type_hint, expr=expr, entropy=entropy, tag=tag)
+
+def parse_return_statement(tokens):
+    assert tokens[0][1] == "return"
+    expr = parse_expression(tokens[1:-1])
+    return ASTNode("Return", expr=expr)
+
+def parse_function(tokens):
+    fn_name = tokens[1][1]
+    return_type = tokens[tokens.index(('ARROW', '->')) + 1][1]
+    body_tokens = tokens[tokens.index(('LBRACE', '{')) + 1 : tokens.index(('RBRACE', '}'))]
+
+    statements = []
+    i = 0
+    while i < len(body_tokens):
+        if body_tokens[i][1] == "let":
+            end = i
+            while body_tokens[end][0] != "SEMICOLON":
+                end += 1
+            statements.append(parse_let_statement(body_tokens[i:end+1]))
+            i = end + 1
+        elif body_tokens[i][1] == "return":
+            statements.append(parse_return_statement(body_tokens[i:i+3]))
+            i += 3
+        else:
+            i += 1
+
+    return ASTNode("Function", name=fn_name, returns=return_type, body=statements)
+
+# --- TISC Codegen ---
+def emit_tisc(ast_node):
+    meta = ""
+    if ast_node.node_type == "Let":
+        code = emit_tisc(ast_node.fields['expr'])
+        if ast_node.fields.get("entropy"):
+            meta += f"; @entropy({ast_node.fields['entropy']})\n"
+        if ast_node.fields.get("tag"):
+            meta += f"; @tag(\"{ast_node.fields['tag']}\")\n"
+        return f"{meta}{code}\nSTORE {ast_node.fields['name']}"
+    elif ast_node.node_type == "BinaryExpr":
+        return f"LOAD {ast_node.fields['left']}\n{ast_node.fields['op'].upper()} {ast_node.fields['right']}"
+    elif ast_node.node_type == "Literal":
+        return f"LOAD {ast_node.fields['value']}"
+    elif ast_node.node_type == "Return":
+        return f"{emit_tisc(ast_node.fields['expr'])}\nRETURN"
+    elif ast_node.node_type == "Function":
+        header = f"FUNC {ast_node.fields['name']} RETURNS {ast_node.fields['returns']}"
+        body = '\n'.join([emit_tisc(stmt) for stmt in ast_node.fields['body']])
+        return f"{header}\n{body}\nENDFUNC"
+
+# --- .cweb Generator ---
+def generate_cweb_module(module_name, version="0.1.0"):
+    return {
+        "@name": module_name,
+        "@version": version,
+        "@description": f"Auto-generated from T81Lang parser ({module_name})",
+        "@license": "GPL-3.0",
+        "@source": {
+            "type": "local",
+            "path": f"./{module_name}/"
+        },
+        "@build": {
+            "system": "custom",
+            "flags": ["-DUSE_AXION"]
+        },
+        "@dependencies": {
+            "runtime": []
+        },
+        "@ai": {
+            "optimize": True,
+            "entropy-feedback": True
+        },
+        "@split": {
+            "enabled": False,
+            "max_size_mb": 50
+        },
+        "@symbols": entropy_log
+    }
+
+# --- Sample Program ---
+sample_code = """
+fn main() -> T81Int {
+    let ⍺: T81Int = 27t + 54t @entropy(0.82) @tag("checksum");
+    let β: Symbol<T81Float> = 9t @entropy(0.42) @tag("probe");
+    return ⍺;
+}
+"""
+
+module_name = "t81-sample-module"
+tokens = tokenize(sample_code)
+ast = parse_function(tokens)
+
+print("--- AST (JSON) ---")
+print(json.dumps(ast.to_dict(), indent=2))
+
+print("\n--- TISC Output ---")
+print(emit_tisc(ast))
+
+print("\n--- Entropy Log ---")
+print(json.dumps(entropy_log, indent=2))
+
+print("\n--- Generated .cweb ---")
+print(json.dumps(generate_cweb_module(module_name), indent=2))
