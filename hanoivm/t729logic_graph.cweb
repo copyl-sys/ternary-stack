@@ -8,8 +8,8 @@ Recommendations:
    Implement optimization passes (e.g., constant folding, dead code elimination) and debugging utilities.
 3. **Modular Design:**  
    Separate IR node management, optimization, and visualization to simplify future expansion.
-4. **Future Expansion:**  
-   Enhance symbolic attributes and metadata, integrate with external visualization tools, and set up comprehensive testing frameworks.
+4. **Future Expansion & Integration:**  
+   Enhance symbolic attributes and metadata; integrate with Axion AI, T81Lang, Project Looking Glass, LLVM optimization, logging/telemetry, and external FFI tools.
 
 @c
 #include <stdio.h>
@@ -113,7 +113,6 @@ void optimize_logic_graph(T729LogicGraph *graph) {
                 node->operation = strdup("CONST");
                 node->is_constant = 1;
                 node->constant_value = folded_value;
-                // Free input pointers as they are no longer needed.
                 free(node->inputs);
                 node->inputs = NULL;
                 node->numInputs = 0;
@@ -156,34 +155,94 @@ void free_logic_graph(T729LogicGraph *graph) {
     }
 }
 
-@* Main function for testing T729LogicGraph functionality.
+@* --- Integration Hooks ---
+These stub functions represent integration points for external modules.
+
+@* integrate_with_axion_ai:
+   Stub function for Axion AI integration.
+@c
+void integrate_with_axion_ai(const T729LogicGraph *graph) {
+    // TODO: Implement real-time IR analysis and feedback for dynamic optimization.
+    printf("Axion AI integration: Processing T729LogicGraph with %d nodes.\n", graph->numNodes);
+}
+
+@* integrate_with_t81lang:
+   Stub function for T81Lang integration.
+@c
+void integrate_with_t81lang(const T729LogicGraph *graph) {
+    // TODO: Extend the T81Lang compiler to emit/consume T729LogicGraph.
+    printf("T81Lang integration: Exchanging IR with T729LogicGraph.\n");
+}
+
+@* integrate_with_looking_glass:
+   Stub function for Project Looking Glass integration.
+@c
+void integrate_with_looking_glass(const T729LogicGraph *graph) {
+    // TODO: Provide visualization data for real-time interactive debugging.
+    printf("Project Looking Glass integration: Visualizing T729LogicGraph.\n");
+}
+
+@* integrate_with_llvm_pipeline:
+   Stub function for LLVM optimization pipeline integration.
+@c
+void integrate_with_llvm_pipeline(const T729LogicGraph *graph) {
+    // TODO: Enable advanced IR-to-TISC mappings and entropy-based optimizations.
+    printf("LLVM integration: Linking T729LogicGraph with LLVM optimization passes.\n");
+}
+
+@* setup_logging_and_telemetry:
+   Stub function to initialize logging and telemetry for IR transformations.
+@c
+void setup_logging_and_telemetry(void) {
+    // TODO: Set up logging to capture IR changes and performance metrics.
+    printf("Logging and Telemetry: Initialized for T729LogicGraph.\n");
+}
+
+@* export_logic_graph_api:
+   Stub function to expose a C API for external tools (FFI).
+@c
+void export_logic_graph_api(const T729LogicGraph *graph) {
+    // TODO: Expose IR functions for external languages like Python or Rust.
+    printf("FFI Export: T729LogicGraph API exposed for external tooling.\n");
+}
+
+@* --- End Integration Hooks ---
+
+@* Main function for testing T729LogicGraph functionality and integration hooks.
 @c
 int main(void) {
+    // Set up logging and telemetry.
+    setup_logging_and_telemetry();
+
     // Create an empty logic graph.
     T729LogicGraph *graph = create_logic_graph();
 
     // Create sample nodes.
-    // For constant nodes, is_constant = 1 and constant_value is provided.
-    T729LogicGraphNode *node1 = create_logic_node(1, "CONST", NULL, 0, 1, 5);  // Represents constant value 5.
-    T729LogicGraphNode *node2 = create_logic_node(2, "CONST", NULL, 0, 1, 7);  // Represents constant value 7.
-    
-    // Create an ADD node that adds node1 and node2.
+    T729LogicGraphNode *node1 = create_logic_node(1, "CONST", NULL, 0, 1, 5);  // Constant node with value 5.
+    T729LogicGraphNode *node2 = create_logic_node(2, "CONST", NULL, 0, 1, 7);  // Constant node with value 7.
     T729LogicGraphNode *inputsForAdd[2] = { node1, node2 };
-    T729LogicGraphNode *node3 = create_logic_node(3, "ADD", inputsForAdd, 2, 0, 0);
-    
+    T729LogicGraphNode *node3 = create_logic_node(3, "ADD", inputsForAdd, 2, 0, 0); // ADD node.
+
     // Add nodes to the graph.
     add_logic_node(graph, node1);
     add_logic_node(graph, node2);
     add_logic_node(graph, node3);
 
-    // Optimize the logic graph (should fold the ADD node).
+    // Optimize the logic graph (should fold the ADD node into a CONST node).
     optimize_logic_graph(graph);
 
     // Visualize the logic graph.
     visualize_logic_graph(graph);
 
-    // TODO: Integrate with Axion AI and T81Lang as needed (future expansion).
-    // TODO: Set up comprehensive unit and integration tests for T729LogicGraph.
+    // Call integration hooks.
+    integrate_with_axion_ai(graph);
+    integrate_with_t81lang(graph);
+    integrate_with_looking_glass(graph);
+    integrate_with_llvm_pipeline(graph);
+    export_logic_graph_api(graph);
+
+    // Future integration: Connect with Axion AI and T81Lang for dynamic IR manipulation.
+    // Future testing: Set up comprehensive unit and integration tests for the IR.
 
     // Cleanup: Free allocated memory.
     free_logic_graph(graph);
