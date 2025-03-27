@@ -1,10 +1,6 @@
-Here's a refined and updated **`STATUS.md`**, reiterating your latest provided status clearly, reflecting current progress and capturing synergy between components:
-
----
-
 # ✅ STATUS.md
 
-## 📊 HanoiVM Development Status (v0.9 — March 2025)
+## 📊 HanoiVM Development Status (v0.9.1 — March 2025)
 
 | Subsystem                | Description                                             | Status                 | Completion |
 |--------------------------|---------------------------------------------------------|------------------------|------------|
@@ -17,6 +13,7 @@ Here's a refined and updated **`STATUS.md`**, reiterating your latest provided s
 | **HVM Interpreter**      | `.hvm` execution (register map, RETURN)                 | ✅ Interactive         | **100%**   |
 | **T81TISC**              | Instruction Set (AI/Crypto/Physics)                     | ✅ Complete Spec       | **100%**   |
 | **Axion AI**             | AI kernel for rollback & optimization                   | ✅ Complete            | **100%**   |
+| **FFI Layer**            | External language access via `libhanoivm_ffi.so`        | ✅ Exported & Stable   | **90%**    |
 | **Axion Package Format** | `.cweb` AI-driven package system                        | ✅ Functional + Logging| **90%**    |
 | **T81 Accelerator (M.2)**| PCIe ternary coprocessor                                | 🔄 Prototyping Phase   | **25%**    |
 | **AI Optimizations**     | Loop unrolling, SIMD, entropy transforms                | 🔄 GPU Integration     | **80%**    |
@@ -38,6 +35,7 @@ Here's a refined and updated **`STATUS.md`**, reiterating your latest provided s
 | ⚙️ CUDA Backend  | `cuda_handle_request.cu`    | GPU FFT + symbolic tensor execution     | ✅ Operational | Macro-compatible                          |
 | 🧠 HIP Backend   | `gaia_handle_request.cweb`  | ROCm symbolic executor                  | ✅ Functional  | Mirrors CUDA FFT                          |
 | 🌀 Virtual Machine| `hanoivm_vm.cweb`          | Recursive ternary execution core        | ✅ Symbolic AI | T81/T243/T729 stack promotion             |
+| 🌉 FFI Layer     | `hanoivm_ffi.cweb`          | External access for Rust, Python, C++   | ✅ Stable ABI  | Supports symbolic push/peek, callbacks    |
 | 🔍 Disassembler  | `disassembler.cweb`         | Bytecode introspection                  | ✅ Verbose     | Opcode + symbolic intent                  |
 | 🪵 Log Viewer    | `logviewer.cweb`            | Event tracker (Axion telemetry)         | ✅ Interactive | Filtering, timestamp support              |
 | ♻️ Symbolic Ops  | `advanced_ops_ext.cweb`     | FSM logic, intent dispatch, FFT         | ✅ Extended    | T243MarkovMatrix, T729EntropyBlob         |
@@ -88,7 +86,3 @@ Here's a refined and updated **`STATUS.md`**, reiterating your latest provided s
 | 🧠 Symbolic AI Framework  | Intent-aware FFT, entropy-driven macros        | ✅ Expanded      | New advanced ternary operations integrated        |
 
 ---
-
-This comprehensive view captures your project's impressive synergy, making clear both accomplishments and future opportunities.
-
-Would you like me to proceed to updating `ROADMAP.md` next?
