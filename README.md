@@ -1,6 +1,6 @@
 # 🌐 Copyleft Systems — Unified Ternary Computing Stack
 
-Welcome to the master repository for the **Copyleft Ternary Stack**, an experimental, AI-native computing ecosystem that spans kernel-level AI, a ternary virtual machine, a domain-specific ternary language, and GPU/3D acceleration. This project aims to reclaim control of the full software stack—from entropy models to AI runtime.
+Welcome to the master repository for the **Copyleft Ternary Stack**, an experimental, AI-native computing ecosystem that spans kernel-level AI, a ternary virtual machine, a domain-specific ternary language, GPU/3D introspection, and symbolic entropy-aware packaging. This project aims to reclaim control of the full software stack—from entropy models to AI runtime.
 
 ---
 
@@ -12,13 +12,13 @@ Welcome to the master repository for the **Copyleft Ternary Stack**, an experime
 | `assets/` | Visuals, diagrams, icons, and UI assets |
 | `axion-ai/` | Linux kernel module for AI package management, entropy tracing, and symbolic analysis |
 | `config/` | Global configuration, runtime flags, and environment toggles |
-| `docs/` | Full architecture docs, .cweb spec, AI design, and language references |
+| `docs/` | Full architecture docs, `.cweb` spec, AI design, and language references |
 | `examples/` | Sample programs demonstrating T81Lang, HanoiVM ops, and ternary recursion |
 | `hanoivm/` | Recursive ternary virtual machine runtime for T81, T243, and T729 execution |
 | `init_/` | Compressed initial setup files or bootloader stages (to be unpacked) |
 | `project-lookingglass/` | Java 3D-based visualizer for AI introspection and ternary state rendering |
 | `src/` | Shared source (to be split by module as needed) |
-| `t81lang/` | High-level language for base-81 ternary computing; JIT and compiler work in progress |
+| `t81lang/` | High-level language for base-81 ternary computing; includes `t81_compile.py` CLI and test suite |
 | `tests/` | Unit and integration testing for modules across the stack |
 | `tisc-assembler/` | Ternary Instruction Set (TISC) disassembler, opcode table, and analysis logic |
 
@@ -29,24 +29,26 @@ Welcome to the master repository for the **Copyleft Ternary Stack**, an experime
 - **AI-Native Kernel Stack**: Axion AI operates as an autonomous kernel module for AI optimization, entropy detection, and ternary runtime control.
 - **HanoiVM**: Ternary recursion VM with T81/T243/T729 logic, symbolic execution, and stack promotion.
 - **T81Lang**: Strongly typed, AI-assisted high-level language for ternary arithmetic and system programming.
+- **t81_compile.py**: Compiler CLI for `.t81` source → `.ast.json`, `.tisc`, `.entropy.json`, `.cweb`
 - **Project Looking Glass**: A 3D visual window manager and introspection UI for AI behavior, ternary logic, and entropy feedback.
-- **.cweb Format**: Structured plaintext package spec used by Axion for AI-driven source/binary builds.
+- **.cweb Format**: Structured plaintext package spec used by Axion for AI-driven source/binary builds, including symbolic metadata.
 
 ---
 
 ## 🔁 Development Guidelines
 
 - Modularize frequently — use `.cweb` files for split components under 50MB.
-- Write to the `docs/` directory to keep concepts, specs, and roadmaps up-to-date.
+- Run `t81_compile.py` against `.t81` examples and validate `.tisc`, `.cweb`, and entropy logs.
 - Keep all folders non-empty (Git limitation). Use `README.md` or `.keep` files.
-- Use entropy and symbolic tracing when developing inside `hanoivm` or `axion-ai`.
+- Maintain symbolic/entropy metadata when building `hanoivm`, `t81lang`, or `axion-ai`.
+- Update the `docs/` directory for every spec or architecture change.
 
 ---
 
 ## 🛠 Technologies Used
 
-- C / Java / CUDA / Bash
-- Custom `.cweb` build system
+- C / Python / Java / CUDA / Bash
+- Custom `.cweb` packaging & compiler toolchain
 - Linux Kernel 6.8+ (patched for AI interaction)
 - Ghidra (RiftCat Plugin)
 - JSON / PDF / XML reporting
@@ -60,7 +62,7 @@ Welcome to the master repository for the **Copyleft Ternary Stack**, an experime
 - Axion-GAIA full GPU ternary AI bridge
 - Quantum/entropy simulation APIs
 - Autonomous AI packaging from logs + entropy feedback
-- Secure AI sandboxing with rollback
+- Secure AI sandboxing with rollback and symbolic verification
 
 ---
 
