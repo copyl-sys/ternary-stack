@@ -4,7 +4,7 @@
 
 | Subsystem                | Description                                             | Status                 | Completion |
 |--------------------------|---------------------------------------------------------|------------------------|------------|
-| **T81Lang**              | Grammar, compiler backend, REPL, JIT                    | ✅ Documented          | **90%**    |
+| **T81Lang**              | Grammar, compiler backend, REPL                         | ✅ Documented          | **90%**    |
 | **T81VM**                | Recursive ternary VM for `.t81` / `.hvm`                | ✅ Symbolic Complete   | **85%**    |
 | **T81 Data Types**       | BigInt, Float, Fraction, Graph, Tensor                  | ✅ Extended + Ops      | **95–100%**|
 | **T81 Compiler**         | Lexer → AST → Semantic → IR → HVM pipeline              | ✅ Working End-to-End  | **95%**    |
@@ -86,3 +86,85 @@
 | 🧠 Symbolic AI Framework  | Intent-aware FFT, entropy-driven macros        | ✅ Expanded      | New advanced ternary operations integrated        |
 
 ---
+
+## 🔄 Phase 8: LLVM Integration & Optimization (Active)
+
+| Component                | Purpose                                        | Status                | Notes                                             |
+|--------------------------|------------------------------------------------|-----------------------|---------------------------------------------------|
+| LLVM Target Registration | Target registration for custom T81 backend     | ✅ Complete           | `t81-unknown-none` registered                     |
+| LLVM IR Integration      | Integration with LLVM for IR conversion        | ✅ Complete           | Custom data types supported                       |
+| DAG Patterns & Backend   | Instruction Selection and backend printing     | ✅ Complete           | `T81AsmPrinter` operational                       |
+| Basic LLVM Pipeline      | Prototype integration with LLVM pipeline       | ✅ Functional         | Testing ongoing                                   |
+| Advanced IR Mappings     | IR-to-TISC mappings with SIMD & entropy opts     | 🔄 In Progress        | Prototype IR mapping in progress                  |
+| Optimization Passes      | Loop unrolling, SIMD, and entropy optimization   | 🔄 In Progress        | Setting performance metrics and benchmarks        |
+| LLVM Backend Synergy     | Full backend and frontend integration          | 🔄 Planned            | Defining success criteria for integration         |
+
+---
+
+## 🔄 Phase 9: Packaging, Distribution & Automation (Next Up)
+
+| Component                | Purpose                                             | Status                | Notes                                                       |
+|--------------------------|-----------------------------------------------------|-----------------------|-------------------------------------------------------------|
+| `.cweb` Package Format   | Literate AI-driven build flows                      | ✅ Functional         | Modularized package architecture                            |
+| Modularization           | Axion-driven package size management                | ✅ Implemented        | Size management via package modularization                   |
+| Version-Controlled Releases | Consistent release packaging (v0.9-Public-Alpha.zip) | ✅ Implemented        | Releases managed via Git tags                                 |
+| `.cwebpkg` Manifests     | Manifests for T81Lang and binary bundles            | 🔄 In Progress        | Further metadata integration needed                           |
+| Automated CI/CD Pipeline | Automated unit, integration, and system tests       | 🔄 In Progress        | Deployment to staging environments planned                    |
+| Live Documentation Site  | Hosting for community-driven docs and demos         | 🔄 In Progress        | Community contributions and FAQs integrated                    |
+
+---
+
+## 🔧 Dedicated Testing & Quality Assurance (New)
+
+| Component                | Purpose                                             | Status                | Notes                                                       |
+|--------------------------|-----------------------------------------------------|-----------------------|-------------------------------------------------------------|
+| Testing Suite            | Comprehensive unit, integration, and system tests   | 🔄 In Progress        | Developing regression and performance tests                  |
+| Security Audits          | Vulnerability scanning and compliance checks        | 🔄 Planned            | Regular security audits planned                                |
+| Performance Benchmarking | Benchmarking and regression testing                 | 🔄 In Progress        | Setting up metrics and performance tests                        |
+
+---
+
+## 👥 Community & Contribution Guidelines (New)
+
+| Component                | Purpose                                             | Status                | Notes                                                       |
+|--------------------------|-----------------------------------------------------|-----------------------|-------------------------------------------------------------|
+| Contribution Guidelines  | Detailed guidelines and code of conduct             | 🔄 Planned            | To be drafted and reviewed by core team                         |
+| Support Portal           | Community support and feedback loop                 | 🔄 Planned            | Platform for early user feedback and support                     |
+| Roadmap Reviews          | Regular community reviews and roadmap updates       | 🔄 Planned            | Scheduled meetings and feedback sessions planned                  |
+
+---
+
+## 🔒 Security Enhancements (New)
+
+| Component                | Purpose                                             | Status                | Notes                                                       |
+|--------------------------|-----------------------------------------------------|-----------------------|-------------------------------------------------------------|
+| Granular Security Tasks  | Vulnerability scanning, compliance, and sandboxing  | 🔄 Planned            | Detailed tasks and milestones to be defined                       |
+| Metadata Blockchain      | Immutable Axion logs and audit trails               | 🔄 In Progress        | Integrating with local and distributed verification mechanisms      |
+
+---
+
+## 🔗 Related Ecosystem Projects
+
+- [Alexis Linux](https://github.com/copyl-sys) — AI-native modular OS
+- [T81Lang](https://github.com/copyl-sys) — Symbolic ternary programming language
+- [Axion AI](https://github.com/copyl-sys) — Kernel-level optimization AI
+- **Project Looking Glass** — 3D symbolic recursion and state visualizer
+
+---
+
+> 🧠 *"Recursion is not merely structure; it's the soul of ternary logic."*
+
+---
+
+### 🔄 v0.9 Summary (March 2025)
+
+- ✅ Complete symbolic execution across T81, T243, T729 tiers  
+- ✅ Comprehensive LLVM backend foundation established  
+- ✅ Axion AI fully integrated with kernel-level entropy-driven logic  
+- ✅ GPU acceleration active (CUDA/ROCm) with symbolic FFT  
+- ✅ Advanced developer tools and recursion visualization complete  
+- ✅ Portable FFI support for external language embedding (`libhanoivm_ffi.so`)  
+- ✅ GPU Graph Pipeline integration (gaia_graph_pipeline.cweb) with conversion functions  
+- ✅ Symbolic AI Graph IR integration (T729LogicGraph) with full integration hooks  
+- ✅ Enhanced VM Execution Core (hanoivm_vm.cweb) with logging/telemetry & integration hooks  
+- 🔜 Immediate Next Focus: Project Looking Glass enhancements, LLVM IR optimization pipeline
