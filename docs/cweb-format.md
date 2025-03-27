@@ -86,7 +86,7 @@ These influence `t81_compile.py` and future build flows that incorporate entropy
 
 ## 🔐 Security Fields
 
-- `sandbox:` → Enables isolated builds
+- `sandbox:` → Enables isolated builds  
 - `rollback:` → Allows auto-revert if anomalies are found
 
 ---
@@ -153,7 +153,6 @@ Generated `.cweb` files (like `t81-sample-module.cweb`) can be directly passed t
 
 ---
 
-Last updated: March 2025  
-Maintained by: `copyleft systems`  
-Mode: `./night_shift.sh -sync -copyleftsystems`
-
+**Last updated:** March 2025  
+**Maintained by:** `copyleft systems`  
+**Mode:** `./night_shift.sh -sync -copyleftsystems`
