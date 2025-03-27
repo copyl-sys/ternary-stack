@@ -187,3 +187,86 @@ bazel run //:recursive_tier_execution -- --max-depth=36
 ---
 
 > 🧠 “Recursion is not just a structure — it’s the soul of ternary.”
+
+
+Here’s an **overview** of all the `.cweb` documents provided so far. Each `.cweb` file is part of our  larger ternary logic and system architecture, and they serve various roles in your project. Here’s a breakdown:
+
+### 1. **`axion-gaia-interface.cweb`**
+   - **Purpose**: Defines the GPU dispatch interface for ternary logic, bridging the **HanoiVM** ternary virtual machine and the **Axion Kernel Module** with GPU backends (GAIA/ROCm and CUDA).
+   - **Key Features**:
+     - Dispatches ternary macros.
+     - Supports symbolic processing and intent-based computation.
+     - Includes stubs for future backend integration.
+   
+### 2. **`axion-ai.cweb`**
+   - **Purpose**: This file is a fully implemented **AI-powered kernel module** for **Axion**, enabling AI-driven resource management and anomaly detection.
+   - **Key Features**:
+     - Supports **ternary binary execution** (TBIN).
+     - Implements **self-healing**, rollback mechanisms, and ternary-aware package management.
+     - Integrates with natural language commands and telemetry logging.
+     - Includes a **ternary instruction set** and simulated GPU usage.
+
+### 3. **`config.cweb`**
+   - **Purpose**: Centralizes configuration for the **HanoiVM** project and **Axion AI** kernel module.
+   - **Key Features**:
+     - Includes settings for **hardware acceleration** (PCIe, GPU).
+     - Manages **AI optimization**, **logging**, and **resource management**.
+     - Provides **environment detection** and **global ternary logic modes**.
+
+### 4. **`disassembler.cweb`**
+   - **Purpose**: Handles the disassembly of ternary bytecode in **HanoiVM**.
+   - **Key Features**:
+     - Decodes **T81 operands** and extended operand types like **BIGINT**, **FLOAT**, and **FRACTION**.
+     - Translates opcodes, provides verbose output, and can dump data in **hex**.
+     - Supports **JSON output** and session-aware disassembly integration.
+     - Includes **entropy warnings** and symbolic operand decoding.
+
+### 5. **`hanoivm_vm.cweb`**
+   - **Purpose**: The core execution engine for **HanoiVM**, which handles recursion, stack promotion, and interaction with **Axion AI** hooks.
+   - **Key Features**:
+     - Interprets **.hvm bytecode** using the defined **Opcode** enum.
+     - Integrates with **Axion AI** for runtime safety and optimization.
+     - Manages the stack and recursion logic.
+     - **Refactorable for synergy** with other modules like `config.cweb`.
+
+### 6. **`hvm_promotion.cweb`** / **`t81_stack.cweb`**
+   - **Purpose**: Manages the **stack promotion** and **ternary stack** operations within **HanoiVM**.
+   - **Key Features**:
+     - Handles **recursion engine** data.
+     - Implements **JSON execution logging** for **postmortem analysis**.
+     - Integrates **Axion entropy tracing** for better performance and analysis within `evaluate_opcode()`.
+
+### 7. **`advanced_ops_ext.cweb`**
+   - **Purpose**: Introduces advanced ternary data types and operations, specifically focusing on symbolic execution within **HanoiVM**.
+   - **Key Features**:
+     - Implements data types like **T243MarkovMatrix**, **T243Symbol**, **T729EntropyBlob**, **T243Circuit**, **T243MorphicTag**, and **T729MindMap**.
+     - Supports complex ternary logic, symbolic execution, and higher-order ternary computation.
+
+### 8. **`t81_patterns.cweb`**
+   - **Purpose**: Defines reusable **T81-based ternary logic templates** and **computational macros**.
+   - **Key Features**:
+     - Includes standard ternary patterns for general use across **HanoiVM** and **Axion AI**.
+     - Provides optimized ternary operations that can be reused in different contexts for efficiency.
+
+### 9. **`t81_stack.cweb`** (Additional Reference)
+   - **Purpose**: Implements and manages stack operations in ternary logic, supporting operations like **push**, **pop**, and **stack manipulation**.
+   - **Key Features**:
+     - Focused on stack management within **HanoiVM** for ternary data structures.
+     - Supports **recursive functions** and stack-based optimizations.
+
+---
+
+### **High-Level Module Interaction**
+
+- **`axion-ai.cweb`** and **`hanoivm_vm.cweb`** are central to the AI-driven and ternary execution aspects of your system. 
+  - They enable AI-driven optimization, real-time resource management, and ternary logic execution (through the **HanoiVM** engine).
+  
+- **`config.cweb`** ties these modules together, allowing centralized configuration for both hardware and logic.
+  
+- **`disassembler.cweb`** provides visibility into **HanoiVM** bytecode execution, allowing you to inspect and debug ternary code at a low level.
+
+- **`advanced_ops_ext.cweb`** and **`t81_patterns.cweb`** are higher-level utility modules that introduce additional computational power and reusable ternary logic templates for use in **HanoiVM**.
+
+---
+
+This modular setup allows for a robust and flexible ternary computing ecosystem, focusing on optimization, symbolic computation, and AI-driven resource management across the various components.
