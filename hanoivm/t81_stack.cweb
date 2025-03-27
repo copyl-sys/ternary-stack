@@ -9,11 +9,19 @@ Included Features:
 - Stack control: `dup81`, `swap81`, `drop81`.
 - Integrated with Axion AI logging.
 
-@#
+@<Include Dependencies@>=
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
-include "libt81.h"
+#include "config.h"
+#include "ai_hook.h"
+#include "hvm_loader.h"
+#include "libt81.h"
 #include "libt243.h"
 #include "libt729.h"
+@#
+
 #define STACK_UNDERFLOW_ERR -2
 
 @* Stack State Structure@<=
