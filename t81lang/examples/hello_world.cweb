@@ -1,0 +1,24 @@
+// File: examples/t81lang/hello_world.cweb
+// Source: hello_world.t81 (compiled by t81_compile.py)
+// Description: Symbolic representation of a Hello World program in T81Lang
+// Tags: [symbolic_entry_point, t81string, ternary_output]
+
+@cweb_package
+name: hello_world
+version: 0.1.0
+entropy: low
+symbolic_tags: [print, stdout, base81, entry_point]
+
+--- BEGIN TISC ---
+
+LOAD     R1, "Hello, World!"     ; Load base-81 string into R1
+SYSCALL  PRINT, R1               ; Print value of R1 to stdout
+RET                             ; Return from entry point
+
+--- END TISC ---
+
+// AI Notes:
+// - Symbolic entry point detected.
+// - No recursion or branching.
+// - Entropy level within baseline threshold.
+// - Suitable for Axion AI optimization logging.
