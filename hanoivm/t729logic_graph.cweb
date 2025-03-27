@@ -1,15 +1,15 @@
-@* T729logic_graph.cweb
+@* T729LogicGraph.cweb
 This module defines T729LogicGraph, a symbolic IR that captures AI logic and ternary computation flows to enable advanced optimization, introspection, and visualization.
-  
+
 Recommendations:
 1. **Interface Integration:**  
-   Expose functions to create and manipulate the IR for integration with Axion AI and T81Lang.
+   Expose functions to create, manipulate, and optimize the IR for integration with Axion AI and T81Lang.
 2. **Optimization & Debugging:**  
-   Implement optimization passes and debugging utilities to refine and visualize the IR.
+   Implement optimization passes (e.g., constant folding, dead code elimination) and debugging utilities.
 3. **Modular Design:**  
-   Keep IR node management, optimization, and visualization modular for future expansion.
+   Separate IR node management, optimization, and visualization to simplify future expansion.
 4. **Future Expansion:**  
-   Extend the IR with additional symbolic metadata and integration with external visualization tools.
+   Enhance symbolic attributes and metadata, integrate with external visualization tools, and set up comprehensive testing frameworks.
 
 @c
 #include <stdio.h>
@@ -20,19 +20,21 @@ Recommendations:
 Each node represents an operation or value in the symbolic IR.
 @c
 typedef struct T729LogicGraphNode {
-    int id;
-    char *operation;               // Operation name (e.g., "ADD", "MUL", etc.)
-    struct T729LogicGraphNode **inputs; // Array of input node pointers
-    int numInputs;                 // Number of input nodes
-    // Additional fields for symbolic attributes and metadata can be added here.
+    int id;                         // Unique identifier for the node.
+    char *operation;                // Operation name (e.g., "ADD", "CONST", "INPUT", etc.)
+    struct T729LogicGraphNode **inputs; // Array of input node pointers.
+    int numInputs;                  // Number of input nodes.
+    int is_constant;                // Flag: 1 if the node represents a constant.
+    int constant_value;             // The constant value if is_constant is true.
+    // Future fields: symbolic metadata, entropy values, optimization flags.
 } T729LogicGraphNode;
 
 @* Data Structure: T729LogicGraph
 This structure represents the entire IR graph.
 @c
 typedef struct {
-    T729LogicGraphNode **nodes;    // Array of pointers to graph nodes
-    int numNodes;                  // Total number of nodes in the graph
+    T729LogicGraphNode **nodes;     // Array of pointers to graph nodes.
+    int numNodes;                   // Total number of nodes in the graph.
 } T729LogicGraph;
 
 @* Function: create_logic_graph
@@ -63,9 +65,9 @@ void add_logic_node(T729LogicGraph *graph, T729LogicGraphNode *node) {
 }
 
 @* Function: create_logic_node
-Creates a new logic graph node with the specified operation and inputs.
+Creates a new logic graph node with the specified operation, inputs, and constant data.
 @c
-T729LogicGraphNode *create_logic_node(int id, const char *operation, T729LogicGraphNode **inputs, int numInputs) {
+T729LogicGraphNode *create_logic_node(int id, const char *operation, T729LogicGraphNode **inputs, int numInputs, int is_constant, int constant_value) {
     T729LogicGraphNode *node = (T729LogicGraphNode *)malloc(sizeof(T729LogicGraphNode));
     if (!node) {
         fprintf(stderr, "Error allocating T729LogicGraphNode\n");
@@ -74,6 +76,8 @@ T729LogicGraphNode *create_logic_node(int id, const char *operation, T729LogicGr
     node->id = id;
     node->operation = strdup(operation);
     node->numInputs = numInputs;
+    node->is_constant = is_constant;
+    node->constant_value = constant_value;
     if (numInputs > 0) {
         node->inputs = (T729LogicGraphNode **)malloc(numInputs * sizeof(T729LogicGraphNode *));
         if (!node->inputs) {
@@ -92,11 +96,31 @@ T729LogicGraphNode *create_logic_node(int id, const char *operation, T729LogicGr
 
 @* Function: optimize_logic_graph
 Performs optimization passes on the T729LogicGraph IR.
+Here we implement a simple constant-folding optimization for ADD nodes.
 @c
 void optimize_logic_graph(T729LogicGraph *graph) {
-    // TODO: Implement optimization passes (e.g., constant folding, dead code elimination)
     printf("Optimizing T729LogicGraph with %d nodes...\n", graph->numNodes);
-    // Placeholder for optimization logic.
+    // Iterate over all nodes and perform constant folding for ADD operations.
+    for (int i = 0; i < graph->numNodes; i++) {
+        T729LogicGraphNode *node = graph->nodes[i];
+        if (strcmp(node->operation, "ADD") == 0 && node->numInputs == 2) {
+            T729LogicGraphNode *in1 = node->inputs[0];
+            T729LogicGraphNode *in2 = node->inputs[1];
+            if (in1->is_constant && in2->is_constant) {
+                // Fold the addition into a constant node.
+                int folded_value = in1->constant_value + in2->constant_value;
+                free(node->operation);
+                node->operation = strdup("CONST");
+                node->is_constant = 1;
+                node->constant_value = folded_value;
+                // Free input pointers as they are no longer needed.
+                free(node->inputs);
+                node->inputs = NULL;
+                node->numInputs = 0;
+                printf("Folded ADD node %d into CONST node with value %d\n", node->id, folded_value);
+            }
+        }
+    }
 }
 
 @* Function: visualize_logic_graph
@@ -106,7 +130,29 @@ void visualize_logic_graph(const T729LogicGraph *graph) {
     printf("T729LogicGraph contains %d nodes:\n", graph->numNodes);
     for (int i = 0; i < graph->numNodes; i++) {
         T729LogicGraphNode *node = graph->nodes[i];
-        printf("Node %d: %s with %d inputs\n", node->id, node->operation, node->numInputs);
+        if (node->is_constant) {
+            printf("Node %d: %s (%d) with %d inputs\n", node->id, node->operation, node->constant_value, node->numInputs);
+        } else {
+            printf("Node %d: %s with %d inputs\n", node->id, node->operation, node->numInputs);
+        }
+    }
+}
+
+@* Function: free_logic_graph
+Frees all allocated memory associated with the T729LogicGraph.
+@c
+void free_logic_graph(T729LogicGraph *graph) {
+    if (graph) {
+        for (int i = 0; i < graph->numNodes; i++) {
+            T729LogicGraphNode *node = graph->nodes[i];
+            if (node) {
+                if (node->operation) free(node->operation);
+                if (node->inputs) free(node->inputs);
+                free(node);
+            }
+        }
+        if (graph->nodes) free(graph->nodes);
+        free(graph);
     }
 }
 
@@ -116,25 +162,31 @@ int main(void) {
     // Create an empty logic graph.
     T729LogicGraph *graph = create_logic_graph();
 
-    // Create sample nodes (for demonstration purposes).
-    T729LogicGraphNode *node1 = create_logic_node(1, "INPUT", NULL, 0);
-    T729LogicGraphNode *node2 = create_logic_node(2, "INPUT", NULL, 0);
+    // Create sample nodes.
+    // For constant nodes, is_constant = 1 and constant_value is provided.
+    T729LogicGraphNode *node1 = create_logic_node(1, "CONST", NULL, 0, 1, 5);  // Represents constant value 5.
+    T729LogicGraphNode *node2 = create_logic_node(2, "CONST", NULL, 0, 1, 7);  // Represents constant value 7.
+    
+    // Create an ADD node that adds node1 and node2.
     T729LogicGraphNode *inputsForAdd[2] = { node1, node2 };
-    T729LogicGraphNode *node3 = create_logic_node(3, "ADD", inputsForAdd, 2);
-
+    T729LogicGraphNode *node3 = create_logic_node(3, "ADD", inputsForAdd, 2, 0, 0);
+    
     // Add nodes to the graph.
     add_logic_node(graph, node1);
     add_logic_node(graph, node2);
     add_logic_node(graph, node3);
 
-    // Optimize the logic graph.
+    // Optimize the logic graph (should fold the ADD node).
     optimize_logic_graph(graph);
 
     // Visualize the logic graph.
     visualize_logic_graph(graph);
 
-    // TODO: Free allocated memory for nodes and graph.
-    // For brevity, cleanup is omitted in this skeleton.
+    // TODO: Integrate with Axion AI and T81Lang as needed (future expansion).
+    // TODO: Set up comprehensive unit and integration tests for T729LogicGraph.
+
+    // Cleanup: Free allocated memory.
+    free_logic_graph(graph);
 
     return 0;
 }
