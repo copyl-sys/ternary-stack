@@ -206,7 +206,7 @@ bazel run //:recursive_tier_execution -- --max-depth=36
 
 ---
 
-## 📜 License
+## 📜 License and Documentation
 
 **MIT License** — see `LICENSE` for full terms.
 
