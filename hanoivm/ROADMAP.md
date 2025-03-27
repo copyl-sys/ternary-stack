@@ -1,7 +1,3 @@
-Here's the **updated and refined `ROADMAP.md`**, integrating your latest developments and emphasizing clear next steps for optimal synergy:
-
----
-
 # 🗺️ HanoiVM — Project Roadmap | Copyleft Systems
 
 **HanoiVM** is a recursive, AI-augmented ternary virtual machine supporting the execution of symbolic logic across the `T81`, `T243`, and `T729` logic layers. It anchors the **T81Lang**, **Axion AI**, and **Alexis Linux** ecosystems, focused on symbolic computation, entropy-aware logic, and AI-accelerated programming.
@@ -56,7 +52,7 @@ Here's the **updated and refined `ROADMAP.md`**, integrating your latest develop
 ## ✅ Phase 5: Developer Experience & Tooling
 
 - [x] Robust `.cweb` literate programming model
-- [x] Full documentation (`README.md`, `manifesto.cweb`, `STATUS.md`, etc.)
+- [x] Full documentation (`README.md`, `MANIFESTO.md`, `STATUS.md`, etc.)
 - [x] Symbolic introspection tools (disassembler, debugger)
 - [x] Recursion visualization engine (`FrameSceneBuilder.cweb`)
 - [x] Log viewer (`logviewer.cweb`) for telemetry analysis
@@ -64,7 +60,18 @@ Here's the **updated and refined `ROADMAP.md`**, integrating your latest develop
 
 ---
 
-## 🔄 Phase 6: Advanced Logic & Visualization (In Progress)
+## ✅ Phase 6: FFI & Cross-Language Integration
+
+- [x] `hanoivm_ffi.cweb` exposing VM context and symbolic stack to external languages
+- [x] Shared library build (`libhanoivm_ffi.so`) for Rust, C++, Python, and CLI bindings
+- [x] Unified T81 operand API via FFI (`push`, `pop`, `peek`)
+- [x] Event callback system for Axion-AI-compatible event streaming
+- [ ] Language-specific binding crates (`hanoivm-py`, `hanoivm-rs`)
+- [ ] Examples: Rust CLI REPL, Python disassembler frontend, WASM proof-of-concept
+
+---
+
+## 🔄 Phase 7: Advanced Logic & Visualization (In Progress)
 
 - [x] GPU acceleration backends: CUDA (`cuda_handle_request.cu`), ROCm (`gaia_handle_request.cweb`)
 - [x] FFT-based symbolic tensor operations (`T729HoloTensor`)
@@ -79,7 +86,7 @@ Here's the **updated and refined `ROADMAP.md`**, integrating your latest develop
 
 ---
 
-## 🔄 Phase 7: LLVM Integration & Optimization (Active)
+## 🔄 Phase 8: LLVM Integration & Optimization (Active)
 
 - [x] LLVM target registration (`t81-unknown-none`)
 - [x] LLVM IR integration & custom data types (`i81`)
@@ -91,7 +98,7 @@ Here's the **updated and refined `ROADMAP.md`**, integrating your latest develop
 
 ---
 
-## 🔄 Phase 8: Packaging, Distribution & Automation (Next Up)
+## 🔄 Phase 9: Packaging, Distribution & Automation (Next Up)
 
 - [x] `.cweb` package architecture with literate build flows
 - [x] Axion-driven modularization for package size management
@@ -117,13 +124,10 @@ Here's the **updated and refined `ROADMAP.md`**, integrating your latest develop
 
 ### 🔄 v0.9 Summary (March 2025)
 
-- ✅ Complete symbolic execution across T81, T243, T729 tiers
-- ✅ Comprehensive LLVM backend foundation established
-- ✅ Axion AI fully integrated with kernel-level entropy-driven logic
-- ✅ GPU acceleration active (CUDA/ROCm) with symbolic FFT
-- ✅ Advanced developer tools and recursion visualization complete
-- 🔜 Immediate Next Focus: GPU graph pipelines, Looking Glass UI enhancements, LLVM IR optimization pipeline
-
----
-
-Let me know if you'd like adjustments or to move onto updating the `CHANGELOG.md` next!
+- ✅ Complete symbolic execution across T81, T243, T729 tiers  
+- ✅ Comprehensive LLVM backend foundation established  
+- ✅ Axion AI fully integrated with kernel-level entropy-driven logic  
+- ✅ GPU acceleration active (CUDA/ROCm) with symbolic FFT  
+- ✅ Advanced developer tools and recursion visualization complete  
+- ✅ Portable FFI support for external language embedding (`libhanoivm_ffi.so`)  
+- 🔜 Immediate Next Focus: GPU graph pipelines, Project Looking Glass enhancements, LLVM IR optimization pipeline
