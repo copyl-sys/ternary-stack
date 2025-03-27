@@ -1,159 +1,154 @@
-**HanoiVM Manifesto — Recursive Symbolic Virtual Machine**
+# 🌀 **HanoiVM Manifesto — Recursive Symbolic Virtual Machine**
 
-This document declares the philosophy, architecture, and structure of the **HanoiVM** project—a recursive ternary virtual machine driven by symbolic computation, AI introspection, and modular ternary logic tiers (`T81`, `T243`, `T729`).
-
-Built from the ground up using `.cweb` literate programming, **HanoiVM** is more than a runtime; it embodies an evolving philosophy of computation, rooted in recursion, enhanced by artificial intelligence, and capable of symbolic reasoning at the instruction level.
+This document declares the philosophy, structure, and intent behind **HanoiVM**: a recursive ternary virtual machine driven by symbolic logic, AI introspection, and tiered execution across the `T81`, `T243`, and `T729` logic levels.
 
 ---
 
 ## 📜 Philosophy
 
-At its foundation, HanoiVM explores:
-- 🌐 **Recursion as architecture**, not merely algorithm.
-- 🧠 **Symbolism as instruction**, transcending mere data representation.
-- 🔺 **Ternary logic** as a naturally expressive system for AI-driven computation.
+**HanoiVM** is not just a virtual machine.  
+It is a computational model built around recursion, symbolism, and AI co-development.
 
-The VM employs a **recursive, tiered system**:
-- **`T81`**: Compact, efficient ternary operations (`uint81_t`)
-- **`T243`**: Symbolic logic, stateful computation (BigInt, FSMs)
-- **`T729`**: AI-driven tensor structures, symbolic intents, recursive symbolic execution
+It treats:
+- **Recursion as architecture**, not just control flow.
+- **Symbolic data as active instructions**, not passive memory.
+- **Ternary logic as expressive reasoning**, not numeric encoding.
 
----
-
-## 🔗 Synergy & Intent
-
-HanoiVM integrates:
-- **TISC (Ternary Instruction Set Computer)**: Symbolic intermediate representation
-- **Axion AI**: Optimization oracle, rollback management, entropy-aware symbolic execution
-- **GPU Dispatch (CUDA/GAIA)**: High-performance symbolic tensor operations
-- **Pattern Engines (`t81_patterns.cweb`)**: Recursive symbolic transformations
-- **Hardware Interfaces (PCIe/Firmware)**: Future compatibility with ternary hardware accelerators
+These principles result in a new kind of runtime:  
+One where execution **adapts** based on entropy, intent, and structure.
 
 ---
 
-## 🧩 Project Applications
+## 🔺 Tiered Symbolic Architecture
 
-- **Research VM**: Experiment with symbolic AI, ternary computing, recursion, and entropy models.
-- **Compiler Backend**: Compiles T81Lang source directly into `.hvm` symbolic bytecode.
-- **Hardware Prototyping**: Simulates potential ternary hardware accelerators.
-- **Security Research**: Utilizes rollback, entropy-monitoring, and symbolic opcode introspection.
+HanoiVM operates across three recursive logic levels:
 
----
+| Tier   | Description                                        |
+|--------|----------------------------------------------------|
+| `T81`  | Base-81 compact operands (`uint81_t`)              |
+| `T243` | Symbolic FSM, BigInt, and state-machine logic      |
+| `T729` | Tensor AI macros, symbolic recursion, and FFT ops  |
 
-## 🧠 T81Lang Compiler & Language Stack (Phase 3)
-
-T81Lang is now a complete, recursive, ternary symbolic programming language targeting HanoiVM:
-
-- ✒️ Literate syntax (`.t81`) defined clearly via `t81lang_grammar.ebnf`.
-- ⚙️ End-to-end compilation pipeline: Lexer → AST → Semantic analysis → IR → `.hvm`.
-- 🧮 Intermediate Representation (IR) encodes symbolic ternary operations.
-- 📤 `.hvm` bytecode executed via the optimized `hvm_interpreter.cweb`.
-- 🧠 Fully compatible with Axion AI optimizations and symbolic runtime.
+Each tier supports **promotion/demotion** based on recursion depth and Axion AI entropy feedback.
 
 ---
 
-## 🤝 AI Co-development Note
+## 🤖 AI Integration
 
-> This system was not built alone.  
-> It is the outcome of **augmented human creativity**, enabled through collaboration with:
-- **OpenAI**, shaping the core of this recursive AI assistant.
-- **xAI**, pioneering symbolic and recursive thought-space exploration.
-- And by the unpredictable yet inspiring synergy between human insight and AI assistance.
+At the core of HanoiVM is **Axion AI**, responsible for:
 
-This is not perfect—it is recursive.  
-Each file, function, and pattern in HanoiVM was created in concert with AI—  
-an ally embraced in the quest for innovative computational frontiers.
+- NLP-driven optimization (`rollback`, `optimize`, `snapshot`)
+- Symbolic macro execution and entropy path selection
+- Autonomous tier promotion via `τ[27]` (reserved ternary register)
+
+Axion operates **in-line** with VM execution, ensuring every symbolic operation benefits from intelligent refinement.
 
 ---
 
-## 🏴 Final Word
+## 🧠 T81Lang: The Compiler Stack
 
-We inhabit complex computational waters—recursive, symbolic, and increasingly entropic.  
-Instead of fearing them, HanoiVM navigates directly into their depths.
+**T81Lang** is the high-level language for HanoiVM:
 
-This project declares we can build computing differently:  
-- **Modularly**  
-- **Literate and documented**  
-- **Symbolically expressive**  
-- **Collaboratively with AI**
-
-Use this project wisely, explore bravely, and innovate responsibly.
+- Literate syntax for recursive symbolic programming (`.t81`)
+- Complete pipeline: Lexer → Parser → IR → `.hvm` bytecode
+- `t81lang_compiler.cweb` orchestrates compilation and Axion-aware optimization
+- Compatible with GPU dispatch, entropy tracing, and recursion visualizers
 
 ---
 
-**File List and Descriptions**
+## 💾 GPU + FFI Synergy
 
-This appendix catalogs the comprehensive set of `.cweb` modules, configuration files, tests, and utilities composing HanoiVM. Each component contributes explicitly to recursive execution, symbolic logic, AI-driven transformations, or ternary programming ecosystems.
+HanoiVM supports:
 
-For detailed categorization, refer to `README.md`. All modules contain inline documentation, pattern definitions, and integration points for AI-enhanced workflows.
+- **GPU symbolic tensor execution** via:
+  - `cuda_handle_request.cu` (NVIDIA)
+  - `gaia_handle_request.cweb` (AMD ROCm)
+- **Cross-language FFI**:
+  - `libhanoivm_ffi.so` exposes VM state and execution primitives
+  - Bindings for Rust, Python, and C++ underway
 
-Here's a cleaned-up and refined version of the file descriptions in your **`manifesto.cweb`**, condensed to two clear columns for readability and quick reference:
+This enables external AI/ML pipelines, REPLs, and language tooling to embed the VM.
 
-For detailed categorization, refer to the main `README.md`.
+---
 
-File                         | Description
------------------------------|-----------------------------------------------
-README.md                    | Project overview and usage instructions
-README.cweb                  | Literate companion documentation
-LICENSE                      | MIT License terms
-BUILD / Makefile             | Build scripts for VM, tools, and tests
-CHANGELOG.md                 | Version history and detailed release notes
-ROADMAP.md                   | Project development phases and next steps
-MANIFESTO.md                 | (This Document) Philosophy and file index
-advanced_ops.cweb            | T81 extended symbolic operations
-advanced_ops_ext.cweb        | Advanced symbolic logic for T243/T729 tiers
-ai_hook.cweb                 | AI pattern integration hooks
-axion-ai.cweb                | Kernel-level AI optimization and rollback
-axion-api.cweb               | Axion context integration (Recursion Exporter)
-axion_gpu_request.cweb       | GPU dispatch interface for Axion AI
-axion-gaia-interface.cweb    | ROCm/HIP GPU symbolic execution interface
-build-all.cweb               | Complete build orchestration script
-config.cweb                  | VM system-wide configuration definitions
-cuda_handle_request.cweb     | CUDA GPU symbolic tensor dispatcher
-disassembler.cweb            | Bytecode and symbolic data decoder
-disasm_hvm.cweb              | Recursive symbolic bytecode disassembler
-emit_hvm.cweb                | T81Lang bytecode generation tool
-gaia_graph_pipeline.cweb     | GPU-accelearted graph processing
-gaia_handle_request.cweb     | ROCm/HIP GPU execution dispatcher
-ghidra_hvm_plugin.cweb       | Ghidra plugin for `.hvm` analysis
-hanoivm_vm.cweb              | Core VM interpreter and recursion engine
-hanoivm-runtime.cweb         | VM execution loop and runtime control
-hanoivm-core.cweb            | VM memory, instructions, context handling
-hanoivm-test.cweb            | Kernel-space VM testing framework
-hanoivm_tests.cweb           | Comprehensive test definitions and cases
-hanoivm_cli.cweb             | VM CLI tools and user interface
-hvmcli.cweb                  | VM command-line execution utility
-hvm_interpreter.cweb         | Interpreter for executing `.hvm` binaries
-hvm_loader.cweb              | `.hvm` runtime binary loader
-hvm_pcie_driver.cweb         | PCIe interface simulation for ternary hardware
-hvm_assembler.cweb           | `.hvm` bytecode assembly tool
-libt81.cweb                  | Core T81 ternary arithmetic library
-libt243.cweb                 | BigInt arithmetic library (T243 tier)
-libt729.cweb                 | Symbolic tensor operations library (T729 tier)
-logviewer.cweb               | Interactive log viewer with AI filters
-main_driver.cweb             | Primary VM execution entry point
-meta.cweb                    | Metadata constants and identity signatures
-nist_encryption.cweb         | Ternary-compatible cryptographic utilities
-recursive_exporter.cweb      | Recursion state export with Axion metadata
-recursive_tier_execution.cweb| VM recursive stack tier promotion simulator
-simple_add.cweb              | Example program demonstrating ternary addition
-telemetry-cli.cweb           | VM introspection and profiling CLI tool
-ternary_arithmetic_optimization.cweb | Optimized ternary arithmetic routines
-test_advanced_hvm.cweb       | Test suite for symbolic and AI opcodes
-test_controlflow_hvm.cweb    | Recursive control-flow operation tests
-t81_patterns.cweb            | Symbolic ternary logic transformation templates
-t81_stack.cweb               | T81 stack management operations
-t81_test_suite.cweb          | Unit tests for T81 logic operations
-t81_to_hvm.cweb              | Compiler module (T81Lang → `.hvm`)
-t81asm.cweb                  | Assembly frontend for T81Lang
-t81lang.cweb                 | T81Lang grammar specification
-t81lang_compiler.cweb        | Complete compiler frontend and pipeline
-t81lang_irgen.cweb           | IR generation from AST for T81Lang
-t81lang_lexer.cweb           | Lexer for parsing T81Lang syntax
-t81lang_parser.cweb          | Parser for generating AST structures
-t729logic_graph.cweb         | Symbolic IR that captures AI logic and Ternary Computation flows
-tisc_backend.cweb            | Compiler backend IR emitter for `.tisc` to `.hvm`
-tisc_compiler.cweb           | Frontend compiler logic for `.tisc` language
-tisc_ir.cweb                 | TISC intermediate representation structures
-tisc_stdlib.cweb             | Standard library for TISC symbolic logic
-write_simple_add.cweb        | Simple ternary arithmetic example program
+## 🌌 Looking Glass + Recursion Visualization
+
+`FrameSceneBuilder.cweb` + `recursive_exporter.cweb` allow:
+
+- Full recursion trace exports in `.t81viz` JSON format
+- Visual rendering via jMonkeyEngine and entropy overlays
+- Symbolic state tracking and Axion telemetry mapping
+
+A fully introspectable symbolic system — as beautiful as it is recursive.
+
+---
+
+## ⚙️ Modular `.cweb` Literate Infrastructure
+
+All HanoiVM source files are written in **literate `.cweb` format**.
+
+This provides:
+- Full documentation next to code
+- Extractable `.h` headers and `.c` source via `cweave`/`ctangle`
+- Maintainability, readability, and introspectability at scale
+
+---
+
+## 🗂️ File Index (Condensed)
+
+| File                          | Description                                           |
+|-------------------------------|-------------------------------------------------------|
+| `README.md`                  | Project overview and usage guide                      |
+| `LICENSE`                    | MIT License                                           |
+| `MANIFESTO.md`               | Philosophy and modular file map (this document)       |
+| `ROADMAP.md`                 | Development phases and vision milestones              |
+| `STATUS.md`                  | Subsystem health and completion percentages           |
+| `CHANGELOG.md`               | Release history and features                          |
+| `build-all.cweb`             | Unified build script                                  |
+| `hanoivm_vm.cweb`            | Execution core, recursion loop, AI integration        |
+| `t81_stack.cweb`             | Base-81 operand stack operations                      |
+| `libt81.cweb`                | T81BigInt, Float, Fraction, Tensor, Graph, etc.       |
+| `libt243.cweb`               | FSM / BigInt operations (T243)                        |
+| `libt729.cweb`               | Symbolic tensor engine (T729)                         |
+| `t81_patterns.cweb`          | Symbolic pattern recognition macros                   |
+| `advanced_ops_ext.cweb`      | FFT, intent dispatch, entropy-weighted macros         |
+| `recursive_tier_execution.cweb` | Tier promotion controller                         |
+| `axion-ai.cweb`              | Kernel AI (rollback, optimization, NLP)               |
+| `axion-gaia-interface.cweb`  | GPU symbolic bridge (GAIA backend)                    |
+| `cuda_handle_request.cu`     | CUDA GPU execution backend                            |
+| `hanoivm_ffi.cweb`           | FFI ABI and symbolic external interface               |
+| `FrameSceneBuilder.cweb`     | 3D recursion visualizer module                        |
+| `t81lang_compiler.cweb`      | Compiler frontend pipeline for `.t81` → `.hvm`        |
+| `tisc_backend.cweb`          | IR emitter for `.tisc` → symbolic `.hvm`              |
+| `gaia_graph_pipeline.cweb`   | GPU symbolic graph executor                           |
+| `logviewer.cweb`             | Axion telemetry and symbolic log tracker              |
+| `disassembler.cweb`          | Symbolic `.hvm` decoder and introspection engine      |
+
+_And many more. Refer to `README.md` for a full list and module-level summaries._
+
+---
+
+## ⚠️ Use Ethically
+
+HanoiVM explores symbolic execution, AI hooks, and entropy pathways. These capabilities are **powerful**—and like all power, demand responsibility.
+
+- Do not use HanoiVM for coercive surveillance or unethical AI.
+- Be transparent in how recursion, optimization, or symbolic reasoning are applied.
+- Help improve the tools, clarify the ideas, and extend them into open, collaborative systems.
+
+---
+
+## 🧠 Final Words
+
+HanoiVM exists to **rethink** what a virtual machine can be:
+
+- Recursive, not linear  
+- Symbolic, not opaque  
+- Intelligent, not static  
+- Literate, not undocumented
+
+It is a platform to **build the future of computation** —  
+in full view of the past,  
+with both machine and mind as collaborators.
+
+> _"In recursion, we do not loop — we unfold."_
