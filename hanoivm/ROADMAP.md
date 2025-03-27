@@ -46,6 +46,7 @@
 - [x] Entropy feedback via reserved ternary registers (`τ[27]`)
 - [x] Symbolic pattern analysis and feedback (`t81_patterns.cweb`)
 - [x] Comprehensive logging & metadata tracking with entropy-based dispatch
+- [x] Session-aware entropy hooks in `evaluate_opcode()` and `disassembler.cweb`
 
 ---
 
@@ -67,7 +68,7 @@
 - [x] Unified T81 operand API via FFI (`push`, `pop`, `peek`)
 - [x] Event callback system for Axion-AI-compatible event streaming
 - [ ] Language-specific binding crates (`hanoivm-py`, `hanoivm-rs`)  
-  *Estimated Timeline: Q2 2025; detailed API documentation in progress*
+  *Estimated Timeline: Q2 2025*
 - [ ] Examples: Rust CLI REPL, Python disassembler frontend, WASM proof-of-concept
 
 ---
@@ -77,94 +78,107 @@
 - [x] GPU acceleration backends: CUDA (`cuda_handle_request.cu`), ROCm (`gaia_handle_request.cweb`)
 - [x] FFT-based symbolic tensor operations (`T729HoloTensor`)
 - [x] PulseControl entropy visualization animations
-- [x] GPU Graph Pipeline Integration (gaia_graph_pipeline.cweb) with conversion functions, debugging & profiling utilities
+- [x] GPU Graph Pipeline Integration (`gaia_graph_pipeline.cweb`) with conversion functions
 - [ ] GPU Graph Execution: `hipGraphLaunch`, `cuGraphExec` pipelines  
-  *Milestones: Prototype pipeline demo, integration testing, performance benchmarks*
-- [x] **Symbolic AI Graph IR (T729LogicGraph)**  
-  *Integrated with constant folding, visualization, and integration hooks for Axion AI, T81Lang, Project Looking Glass, LLVM pipeline, logging, and FFI.*
-- [x] **Enhanced VM Execution Core (hanoivm_vm.cweb)**  
-  *Refactored to include logging, telemetry, and integration hooks for dynamic optimization and external monitoring.*
-- [ ] Metadata blockchain for immutable Axion logs and security auditing
+- [x] Symbolic AI Graph IR (`T729LogicGraph`)  
+- [x] Enhanced Execution Core (`hanoivm_vm.cweb`)  
+- [x] Integration of entropy-aware tracing and symbolic AI dispatch in `evaluate_opcode()`
+- [ ] Metadata blockchain for immutable Axion logs and audit trails
 - [ ] Project Looking Glass:  
-  - [ ] Interactive HUD and inspection tools (prototype/mockup phase)
-  - [ ] Real-time optimization timeline
-  - [ ] Axion telemetry streaming
+  - [ ] Interactive HUD + 3D VM inspection tooling
+  - [ ] Real-time optimization and execution timeline
+  - [ ] Live Axion telemetry streaming
 
 ---
 
 ## 🔄 Phase 8: LLVM Integration & Optimization (Active)
 
 - [x] LLVM target registration (`t81-unknown-none`)
-- [x] LLVM IR integration & custom data types (`i81`)
+- [x] LLVM IR integration & custom data types (`i81`, `v81`, `tensor81`)
 - [x] Instruction Selection DAG patterns and backend (`T81AsmPrinter`)
-- [x] Basic LLVM pipeline integration & testing
-- [ ] Advanced IR → TISC opcode mappings  
-  *Intermediate Deliverable: Prototype IR mapping complete*
+- [x] Basic LLVM pipeline integration
+- [ ] Advanced IR → TISC opcode mapping  
+  *Prototype IR matcher implemented*
 - [ ] Optimization passes: SIMD, loop unrolling, entropy optimization  
-  *Set performance evaluation metrics and benchmarks*
-- [ ] Complete LLVM backend and frontend synergy  
-  *Define clear success criteria for integration*
+- [ ] Full backend/frontend LLVM synergy  
+  *Final goal: ternary-aware SSA pipeline with Axion-driven JIT hooks*
 
 ---
 
-## 🔄 Phase 9: Packaging, Distribution & Automation (Next Up)
+## 🔄 Phase 9: Packaging, Distribution & Automation
 
-- [x] `.cweb` package architecture with literate build flows
-- [x] Axion-driven modularization for package size management
-- [x] Version-controlled releases (`Release-v0.9-Public-Alpha.zip`)
-- [ ] `.cwebpkg` manifests for T81Lang and binary bundles
-- [ ] Automated GitHub CI/CD pipeline  
-  *Includes automated unit, integration, and system tests; deployment to staging environments*
-- [ ] Live documentation site & demo package hosting  
-  *Plan includes community contributions, FAQs, and regular update cycles*
+- [x] `.cweb` package architecture with modular literate builds
+- [x] Axion-driven modularization for package splitting (`max 50MB`)
+- [x] Release bundles (`Release-v0.9-Public-Alpha.zip`)
+- [ ] `.cwebpkg` manifests with export profiles for binaries + source
+- [ ] GitHub CI/CD pipeline with automated tests and release jobs
+- [ ] Live demo hosting + documentation portal
 
 ---
 
-## 🔧 Dedicated Testing & Quality Assurance (New)
+## 🔧 Dedicated Testing & Quality Assurance
 
-- [ ] Comprehensive automated testing suite (unit, integration, and system tests)
-- [ ] Security audits and vulnerability scanning
-- [ ] Performance benchmarking and regression testing
-
----
-
-## 👥 Community & Contribution Guidelines (New)
-
-- [ ] Detailed contribution guidelines and code of conduct
-- [ ] Community support portal and feedback loop for early users
-- [ ] Regularly scheduled community reviews and roadmap updates
+- [ ] Extensive unit + system test suite
+- [ ] Telemetry-based regression testing
+- [ ] Symbolic integrity validation across promotion/demotion boundaries
+- [ ] AI fuzzing and entropy convergence tests
 
 ---
 
-## 🔒 Security Enhancements (New)
+## 👥 Community & Contribution Guidelines
 
-- [ ] Granular security tasks: vulnerability scanning, compliance checks, and secure sandboxing
-- [ ] Integration of metadata blockchain for Axion log immutability and audit trails
+- [ ] Contributor guide & code of conduct
+- [ ] Community discussions + support portal
+- [ ] Monthly public roadmap sync & changelog digest
 
 ---
 
-## 🔗 Related Ecosystem Projects
+## 🔒 Security Enhancements
 
-- [Alexis Linux](https://github.com/copyl-sys) — AI-native modular OS
-- [T81Lang](https://github.com/copyl-sys) — Symbolic ternary programming language
-- [Axion AI](https://github.com/copyl-sys) — Kernel-level optimization AI
-- **Project Looking Glass** — 3D symbolic recursion and state visualizer
+- [ ] Metadata blockchain for Axion log immutability
+- [ ] Secure sandboxing for VM guest code
+- [ ] Verified `.cweb` build signatures with rollback detection
+
+---
+
+## 🧩 Supported Data Types
+
+HanoiVM currently supports execution and introspection of the following symbolic and AI-accelerated types:
+
+### T81 Tier:
+- `T81BigInt`, `T81Float`, `T81Fraction`
+- `T81Matrix`, `T81Vector`, `T81Quaternion`
+- `T81Polynomial`, `T81Tensor`
+- `T81Graph`, `T81Opcode`
+
+### T243 Tier:
+- `T243BigInt`, `T243Circuit`, `T243MarkovMatrix`, `T243MorphicTag`
+
+### T729 Tier:
+- `T729Tensor`, `T729MindMap`, `T729EntropyBlob`, `T729LogicGraph`
+
+---
+
+## 🔗 Ecosystem Integration
+
+- [Alexis Linux](https://github.com/copyl-sys) — AI-native OS base
+- [T81Lang](https://github.com/copyl-sys) — Ternary symbolic programming language
+- [Axion AI](https://github.com/copyl-sys) — Kernel optimization & symbolic AI
+- [Project Looking Glass](https://github.com/copyl-sys) — 3D symbolic recursion visualizer
+
+---
+
+### 🌀 v0.9 Summary (March 2025)
+
+- ✅ Full symbolic execution stack across T81/T243/T729
+- ✅ Axion AI kernel integration with entropy feedback
+- ✅ GPU symbolic tensor and AI logic IR support
+- ✅ T81Lang compiler, REPL, and TISC backend integration
+- ✅ Logging, telemetry, introspection, and debugger tools
+- ✅ FFI and cross-language embedding (`libhanoivm_ffi.so`)
+- ✅ Modular `.cweb` ecosystem with Axion-driven package handling
+- 🔜 Next: LLVM IR ↔ symbolic opcode mapping, Looking Glass visualization layer
 
 ---
 
 > 🧠 *"Recursion is not merely structure; it's the soul of ternary logic."*
-
----
-
-### 🔄 v0.9 Summary (March 2025)
-
-- ✅ Complete symbolic execution across T81, T243, T729 tiers  
-- ✅ Comprehensive LLVM backend foundation established  
-- ✅ Axion AI fully integrated with kernel-level entropy-driven logic  
-- ✅ GPU acceleration active (CUDA/ROCm) with symbolic FFT  
-- ✅ Advanced developer tools and recursion visualization complete  
-- ✅ Portable FFI support for external language embedding (`libhanoivm_ffi.so`)  
-- ✅ GPU Graph Pipeline integration (gaia_graph_pipeline.cweb) with conversion functions  
-- ✅ Symbolic AI Graph IR integration (T729LogicGraph) with full integration hooks  
-- ✅ Enhanced VM Execution Core (hanoivm_vm.cweb) with logging/telemetry & integration hooks  
-- 🔜 Immediate Next Focus: Project Looking Glass enhancements, LLVM IR optimization pipeline
