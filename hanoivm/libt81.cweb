@@ -50,6 +50,7 @@ typedef struct T81MatrixImpl {
 } T81MatrixImpl;
 @#
 
+
 @<T81 Integer Utility Functions@>=
 static int64_t t81_gcd(int64_t a, int64_t b) {
     if (a < 0) a = -a;
@@ -61,6 +62,22 @@ static int64_t t81_gcd(int64_t a, int64_t b) {
     }
     return a;
 }
+@#
+
+@<T81Polynomial Internal Definition@>=
+typedef struct T81PolynomialImpl {
+    T81BigInt* coeffs;   // coeff[0] + coeff[1]x + ...
+    size_t     degree;   // Degree = highest non-zero term
+} T81PolynomialImpl;
+@#
+
+@<T81Tensor Internal Definition@>=
+typedef struct T81TensorImpl {
+    size_t     rank;     // Number of dimensions
+    size_t*    shape;    // Array of shape dimensions
+    size_t     size;     // Total number of elements
+    T81Float*  data;     // Flat data array
+} T81TensorImpl;
 @#
 
 @<T81BigInt Functions@>=
@@ -245,6 +262,81 @@ void t81_matrix_free(T81Matrix m) {
 }
 @#
 
+@<T81Polynomial Functions@>=
+T81Polynomial t81_polynomial_new_from_coeffs(T81BigInt* coeffs, size_t count) {
+    T81Polynomial p = malloc(sizeof(T81PolynomialImpl));
+    if (!p) exit(1);
+    p->coeffs = calloc(count, sizeof(T81BigInt));
+    for (size_t i = 0; i < count; ++i)
+        p->coeffs[i] = t81_bigint_new_from_int64(coeffs[i]->value);
+    p->degree = count - 1;
+
+    // Normalize: trim trailing zeros
+    while (p->degree > 0 && p->coeffs[p->degree]->value == 0)
+        p->degree--;
+    return p;
+}
+
+void t81_polynomial_free(T81Polynomial p) {
+    for (size_t i = 0; i <= p->degree; ++i)
+        t81_bigint_free(p->coeffs[i]);
+    free(p->coeffs);
+    free(p);
+}
+@#
+
+@<T81Tensor Functions@>=
+T81Tensor t81_tensor_new(int rank, size_t* dims) {
+    T81Tensor t = malloc(sizeof(T81TensorImpl));
+    if (!t) exit(1);
+
+    t->rank = rank;
+    t->shape = malloc(sizeof(size_t) * rank);
+    t->size = 1;
+
+    for (int i = 0; i < rank; ++i) {
+        t->shape[i] = dims[i];
+        t->size *= dims[i];
+    }
+
+    t->data = malloc(sizeof(T81Float) * t->size);
+    for (size_t i = 0; i < t->size; ++i)
+        t->data[i] = t81_float_new(0.0);
+    
+    return t;
+}
+
+void t81_tensor_free(T81Tensor t) {
+    for (size_t i = 0; i < t->size; ++i)
+        t81_float_free(t->data[i]);
+    free(t->data);
+    free(t->shape);
+    free(t);
+}
+@#
+
+@<T81Tensor Indexing@>=
+size_t t81_tensor_flat_index(T81Tensor t, size_t* indices) {
+    size_t idx = 0;
+    size_t stride = 1;
+    for (int i = t->rank - 1; i >= 0; --i) {
+        idx += indices[i] * stride;
+        stride *= t->shape[i];
+    }
+    return idx;
+}
+
+T81Float t81_tensor_get(T81Tensor t, size_t* indices) {
+    size_t flat = t81_tensor_flat_index(t, indices);
+    return t->data[flat];
+}
+
+void t81_tensor_set(T81Tensor t, size_t* indices, T81Float val) {
+    size_t flat = t81_tensor_flat_index(t, indices);
+    t->data[flat] = val;
+}
+@#
+
 @h libt81.h
 #ifndef LIBT81_H
 #define LIBT81_H
@@ -258,6 +350,8 @@ typedef struct T81FloatImpl*      T81Float;
 typedef struct T81FractionImpl*   T81Fraction;
 typedef struct T81VectorImpl*     T81Vector;
 typedef struct T81MatrixImpl*     T81Matrix;
+typedef struct T81PolynomialImpl* T81Polynomial;
+typedef struct T81TensorImpl* T81Tensor;
 
 // T81BigInt
 T81BigInt t81_bigint_new_from_int64(int64_t value);
@@ -292,6 +386,18 @@ T81Matrix t81_matrix_mul(T81Matrix a, T81Matrix b);
 T81Float  t81_matrix_get(T81Matrix m, size_t row, size_t col);
 void      t81_matrix_set(T81Matrix m, size_t row, size_t col, T81Float val);
 void      t81_matrix_free(T81Matrix m);
+
+// T81Polynomial
+T81Polynomial t81_polynomial_new_from_coeffs(T81BigInt* coeffs, size_t count);
+T81BigInt     t81_polynomial_eval(T81Polynomial p, T81BigInt x);
+void          t81_polynomial_free(T81Polynomial p);
+
+// T81Tensor
+T81Tensor t81_tensor_new(int rank, size_t* dims);
+void      t81_tensor_free(T81Tensor t);
+T81Float  t81_tensor_get(T81Tensor t, size_t* indices);
+void      t81_tensor_set(T81Tensor t, size_t* indices, T81Float val);
+
 
 #endif
 @#
