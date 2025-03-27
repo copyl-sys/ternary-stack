@@ -50,6 +50,18 @@ typedef struct T81MatrixImpl {
 } T81MatrixImpl;
 @#
 
+@<T81Graph Internal Definition@>=
+typedef struct {
+    int from;
+    int to;
+} T81Edge;
+
+typedef struct T81GraphImpl {
+    size_t node_count;
+    size_t edge_count;
+    T81Edge* edges;
+} T81GraphImpl;
+@#
 
 @<T81 Integer Utility Functions@>=
 static int64_t t81_gcd(int64_t a, int64_t b) {
@@ -373,6 +385,41 @@ void t81_opcode_free(T81Opcode op) {
 }
 @#
 
+@<T81Graph Functions@>=
+T81Graph t81_graph_new(void) {
+    T81Graph g = malloc(sizeof(T81GraphImpl));
+    if (!g) exit(1);
+    g->node_count = 0;
+    g->edge_count = 0;
+    g->edges = NULL;
+    return g;
+}
+
+void t81_graph_add_edge(T81Graph g, int from, int to) {
+    g->edges = realloc(g->edges, sizeof(T81Edge) * (g->edge_count + 1));
+    g->edges[g->edge_count++] = (T81Edge){from, to};
+    if (from >= g->node_count) g->node_count = from + 1;
+    if (to   >= g->node_count) g->node_count = to + 1;
+}
+
+const char* t81_graph_to_json(T81Graph g) {
+    static char buf[1024];
+    char* p = buf;
+    p += sprintf(p, "{\"nodes\":%zu,\"edges\":[", g->node_count);
+    for (size_t i = 0; i < g->edge_count; ++i) {
+        T81Edge e = g->edges[i];
+        p += sprintf(p, "[%d,%d]%s", e.from, e.to, i + 1 < g->edge_count ? "," : "");
+    }
+    sprintf(p, "]}");
+    return buf;
+}
+
+void t81_graph_free(T81Graph g) {
+    free(g->edges);
+    free(g);
+}
+@#
+
 @h libt81.h
 #ifndef LIBT81_H
 #define LIBT81_H
@@ -389,6 +436,7 @@ typedef struct T81MatrixImpl*     T81Matrix;
 typedef struct T81PolynomialImpl* T81Polynomial;
 typedef struct T81TensorImpl* T81Tensor;
 typedef struct T81OpcodeImpl* T81Opcode;
+typedef struct T81GraphImpl* T81Graph;
 
 // T81BigInt
 T81BigInt t81_bigint_new_from_int64(int64_t value);
@@ -439,6 +487,12 @@ void      t81_tensor_set(T81Tensor t, size_t* indices, T81Float val);
 T81Opcode    t81_opcode_new(uint8_t encoded);
 const char*  t81_opcode_name(T81Opcode op);
 void         t81_opcode_free(T81Opcode op);
+
+// T81Graph
+T81Graph     t81_graph_new(void);
+void         t81_graph_add_edge(T81Graph g, int from, int to);
+const char*  t81_graph_to_json(T81Graph g);
+void         t81_graph_free(T81Graph g);
 
 #endif
 @#
