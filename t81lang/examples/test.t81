@@ -1,0 +1,5 @@
+fn main() -> T81Int {
+    let ⍺: T81Int = 27t + 54t @entropy(0.82) @tag("checksum");
+    let β: Symbol<T81Float> = 9t @entropy(0.42) @tag("probe");
+    return ⍺;
+}
