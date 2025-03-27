@@ -192,12 +192,6 @@ cc_binary(
     ],
 )
 
-# ----------------------------- CLEANUP -----------------------------
-
-# Clean all generated test files and build artifacts
-clean:
-	rm -f tests/*.hvm *.o *.c *.h
-
 # ---------------------------- T81LANG COMPILER PIPELINE ----------------------------
 
 cc_binary(
@@ -240,3 +234,32 @@ cc_binary(
     srcs = ["hvm_interpreter.cweb"],
     deps = [],
 )
+
+# ---------------------------- T81LANG SAMPLE TEST FLOW ----------------------------
+
+filegroup(
+    name = "t81_samples",
+    srcs = glob(["samples/*.t81"]),
+)
+
+genrule(
+    name = "generate_sample_hvm",
+    srcs = ["samples/hello_world.t81"],
+    outs = ["samples/hello_world.hvm"],
+    cmd = "$(location :t81lang_compiler) $(location samples/hello_world.t81) --emit-hvm && cp output.hvm $(OUTS)",
+    tools = [":t81lang_compiler"],
+)
+
+sh_test(
+    name = "t81lang_compile_test",
+    srcs = ["tests/t81lang_compile_test.sh"],
+    data = [
+        ":t81lang_compiler",
+        "samples/hello_world.t81",
+        "samples/hello_world.hvm"
+    ],
+)
+
+# ----------------------------- CLEANUP -----------------------------
+
+# Use `bazel clean` instead of manual rm for Bazel workflows.
