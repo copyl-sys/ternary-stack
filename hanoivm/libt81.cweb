@@ -1,259 +1,180 @@
-//* @* libt81.cweb: Base-81 Arithmetic Core
-//
-// This module implements the foundational data structures and arithmetic operations for
-// Base-81 (T81) logic. Each T81 digit encodes 4 ternary digits (trits), and operations
-// are optimized for both compact representation and performance. This module is written
-// in Rust and wrapped in literate programming format for clarity and documentation.
+@* libt81.cweb | Base-81 Arithmetic Core
+This module implements Base-81 (T81) digit and number arithmetic logic, using safe C abstractions.
+Each digit encodes 4 ternary digits. This module enables symbolic and packed ternary computation
+and defines a standard interface via `libt81.h`.
 
-@c
-use std::cmp::Ordering;
-use std::fmt;
-use std::ops::{Add, Sub, Mul, Neg};
+Included Features:
+- `T81Digit`: Integer wrapper from 0–80
+- `T81Number`: Vector of digits (little-endian) + sign
+- Arithmetic: `add`, `sub`, `mul`, `neg`
+- Display formatting and normalization
+@#
 
-@* T81 Digit Representation.
-/// T81Digit represents a single Base-81 digit (0–80 inclusive).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct T81Digit(pub u8);
+@<Include Dependencies@>=
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+@#
 
-impl T81Digit {
-    /// Constructs a new T81Digit if the value is within range (0..81).
-    pub fn new(val: u8) -> Option<T81Digit> {
-        if val < 81 {
-            Some(T81Digit(val))
-        } else {
-            None
-        }
+@<T81 Digit Type@>=
+typedef struct {
+    uint8_t val; // Must be 0–80
+} T81Digit;
+@#
+
+@<T81 Number Type@>=
+typedef struct {
+    T81Digit* digits;  // Least-significant digit first
+    size_t    length;
+    bool      negative;
+} T81Number;
+@#
+
+@<T81 Utility Functions@>=
+T81Digit new_digit(uint8_t val) {
+    if (val >= 81) {
+        fprintf(stderr, "[T81] Invalid digit: %u\n", val);
+        exit(1);
     }
+    return (T81Digit){ .val = val };
 }
 
-@* T81 Number Representation.
-/// T81Number represents a multi-digit Base-81 number, stored little-endian.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct T81Number {
-    pub digits: Vec<T81Digit>, // Least significant digit first
-    pub negative: bool,
+T81Number t81_zero() {
+    T81Number z;
+    z.digits = malloc(sizeof(T81Digit));
+    z.digits[0] = new_digit(0);
+    z.length = 1;
+    z.negative = false;
+    return z;
 }
 
-impl T81Number {
-    /// Creates a new T81Number from a list of digits (assumed little-endian) and a sign.
-    pub fn from_digits(digits: Vec<T81Digit>, negative: bool) -> Self {
-        let mut num = T81Number { digits, negative };
-        num.normalize();
-        num
-    }
-
-    /// Removes any unnecessary leading zeros.
-    pub fn normalize(&mut self) {
-        while self.digits.len() > 1 && self.digits.last().unwrap().0 == 0 {
-            self.digits.pop();
-        }
-        // Zero is always positive.
-        if self.digits.len() == 1 && self.digits[0].0 == 0 {
-            self.negative = false;
-        }
-    }
-
-    /// Returns the additive inverse of the number.
-    pub fn negate(&self) -> Self {
-        let mut result = self.clone();
-        // Zero remains zero.
-        if !(result.digits.len() == 1 && result.digits[0].0 == 0) {
-            result.negative = !result.negative;
-        }
-        result
-    }
-
-    /// Constructs a zero value.
-    pub fn zero() -> Self {
-        T81Number::from_digits(vec![T81Digit(0)], false)
-    }
-
-    /// Constructs a one value.
-    pub fn one() -> Self {
-        T81Number::from_digits(vec![T81Digit(1)], false)
-    }
+T81Number t81_one() {
+    T81Number o;
+    o.digits = malloc(sizeof(T81Digit));
+    o.digits[0] = new_digit(1);
+    o.length = 1;
+    o.negative = false;
+    return o;
 }
 
-@* Display and Ordering Implementations.
-impl fmt::Display for T81Number {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut repr = self
-            .digits
-            .iter()
-            .rev()
-            .map(|d| d.0.to_string())
-            .collect::<Vec<_>>()
-            .join(" ");
-        if self.negative {
-            repr = format!("-{}", repr);
-        }
-        write!(f, "{}", repr)
+void t81_normalize(T81Number* num) {
+    while (num->length > 1 && num->digits[num->length - 1].val == 0) {
+        num->length--;
+    }
+    if (num->length == 1 && num->digits[0].val == 0) {
+        num->negative = false;
     }
 }
+@#
 
-impl PartialOrd for T81Number {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if self.negative != other.negative {
-            return if self.negative { Some(Ordering::Less) } else { Some(Ordering::Greater) };
-        }
-        let ordering = if self.digits.len() != other.digits.len() {
-            if self.digits.len() > other.digits.len() {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            }
-        } else {
-            let mut ord = Ordering::Equal;
-            for (&T81Digit(a), &T81Digit(b)) in self.digits.iter().rev().zip(other.digits.iter().rev()) {
-                if a != b {
-                    ord = a.cmp(&b);
-                    break;
-                }
-            }
-            ord
-        };
-        if self.negative {
-            Some(ordering.reverse())
-        } else {
-            Some(ordering)
-        }
+@<T81 Arithmetic@>=
+T81Number t81_add(const T81Number* a, const T81Number* b);
+T81Number t81_sub(const T81Number* a, const T81Number* b);
+T81Number t81_mul(const T81Number* a, const T81Number* b);
+T81Number t81_negate(const T81Number* n);
+
+T81Number t81_add(const T81Number* a, const T81Number* b) {
+    size_t max_len = (a->length > b->length) ? a->length : b->length;
+    T81Digit* result = calloc(max_len + 1, sizeof(T81Digit));
+    int carry = 0;
+
+    for (size_t i = 0; i < max_len; ++i) {
+        int av = (i < a->length) ? a->digits[i].val : 0;
+        int bv = (i < b->length) ? b->digits[i].val : 0;
+        int sum = av + bv + carry;
+        result[i].val = sum % 81;
+        carry = sum / 81;
     }
+
+    if (carry > 0) {
+        result[max_len].val = carry;
+        max_len++;
+    }
+
+    T81Number out = { result, max_len, false };
+    t81_normalize(&out);
+    return out;
+}
+@#
+
+@<T81 Negation and Subtraction@>=
+T81Number t81_negate(const T81Number* n) {
+    T81Number r;
+    r.length = n->length;
+    r.digits = malloc(sizeof(T81Digit) * r.length);
+    memcpy(r.digits, n->digits, r.length * sizeof(T81Digit));
+    r.negative = !n->negative;
+    return r;
 }
 
-impl Ord for T81Number {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
-    }
+T81Number t81_sub(const T81Number* a, const T81Number* b) {
+    T81Number b_neg = t81_negate(b);
+    T81Number result = t81_add(a, &b_neg);
+    free(b_neg.digits);
+    return result;
 }
+@#
 
-@* Arithmetic Implementations.
-impl Add for T81Number {
-    type Output = T81Number;
-    fn add(self, other: T81Number) -> T81Number {
-        if self.negative != other.negative {
-            return self - other.negate();
-        }
-        let mut result = Vec::new();
-        let mut carry = 0;
-        let max_len = self.digits.len().max(other.digits.len());
-        for i in 0..max_len {
-            let a = self.digits.get(i).map_or(0, |d| d.0);
-            let b = other.digits.get(i).map_or(0, |d| d.0);
-            let sum = a + b + carry;
-            result.push(T81Digit(sum % 81));
+@<T81 Multiplication@>=
+T81Number t81_mul(const T81Number* a, const T81Number* b) {
+    size_t res_len = a->length + b->length;
+    T81Digit* result = calloc(res_len, sizeof(T81Digit));
+
+    for (size_t i = 0; i < a->length; ++i) {
+        int carry = 0;
+        for (size_t j = 0; j < b->length; ++j) {
+            int av = a->digits[i].val;
+            int bv = b->digits[j].val;
+            int sum = av * bv + result[i + j].val + carry;
+            result[i + j].val = sum % 81;
             carry = sum / 81;
         }
-        if carry > 0 {
-            result.push(T81Digit(carry));
-        }
-        T81Number::from_digits(result, self.negative)
+        result[i + b->length].val += carry;
     }
+
+    T81Number out = { result, res_len, a->negative ^ b->negative };
+    t81_normalize(&out);
+    return out;
 }
+@#
 
-impl Sub for T81Number {
-    type Output = T81Number;
-    fn sub(self, other: T81Number) -> T81Number {
-        if self.negative != other.negative {
-            return self + other.negate();
-        }
-        let (larger, smaller, flip_sign) = if self.abs() >= other.abs() {
-            (self.clone(), other, false)
-        } else {
-            (other.clone(), self, true)
-        };
-        let mut result = Vec::new();
-        let mut borrow = 0;
-        for i in 0..larger.digits.len() {
-            let a = larger.digits[i].0 as i16;
-            let b = smaller.digits.get(i).map_or(0, |d| d.0 as i16);
-            let mut diff = a - b - borrow;
-            if diff < 0 {
-                diff += 81;
-                borrow = 1;
-            } else {
-                borrow = 0;
-            }
-            result.push(T81Digit(diff as u8));
-        }
-        let mut final_result = T81Number::from_digits(result, flip_sign ^ self.negative);
-        final_result.normalize();
-        final_result
+@<T81 Debug Print@>=
+void t81_print(const T81Number* n) {
+    if (n->negative) printf("-");
+    for (ssize_t i = n->length - 1; i >= 0; --i) {
+        printf("%u ", n->digits[i].val);
     }
+    printf("\n");
 }
+@#
 
-impl Mul for T81Number {
-    type Output = T81Number;
-    fn mul(self, other: T81Number) -> T81Number {
-        let mut result = vec![T81Digit(0); self.digits.len() + other.digits.len()];
-        for (i, &T81Digit(a)) in self.digits.iter().enumerate() {
-            let mut carry = 0;
-            for (j, &T81Digit(b)) in other.digits.iter().enumerate() {
-                let idx = i + j;
-                let prod = a as u16 * b as u16 + result[idx].0 as u16 + carry;
-                result[idx] = T81Digit((prod % 81) as u8);
-                carry = prod / 81;
-            }
-            if carry > 0 {
-                let idx = i + other.digits.len();
-                result[idx] = T81Digit(result[idx].0.saturating_add(carry as u8));
-            }
-        }
-        let mut final_result = T81Number::from_digits(result, self.negative ^ other.negative);
-        final_result.normalize();
-        final_result
-    }
-}
+@h libt81.h
+#ifndef LIBT81_H
+#define LIBT81_H
 
-impl Neg for T81Number {
-    type Output = T81Number;
-    fn neg(self) -> T81Number {
-        self.negate()
-    }
-}
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
 
-impl T81Number {
-    pub fn abs(&self) -> T81Number {
-        let mut result = self.clone();
-        result.negative = false;
-        result
-    }
-}
+typedef struct { uint8_t val; } T81Digit;
 
-@* Tests.
-#[cfg(test)]
-mod tests {
-    use super::*;
+typedef struct {
+    T81Digit* digits;
+    size_t    length;
+    bool      negative;
+} T81Number;
 
-    #[test]
-    fn test_addition() {
-        let a = T81Number::from_digits(vec![T81Digit(2), T81Digit(1)], false);
-        let b = T81Number::from_digits(vec![T81Digit(3)], false);
-        let c = a + b;
-        assert_eq!(c, T81Number::from_digits(vec![T81Digit(5), T81Digit(1)], false));
-    }
+T81Digit new_digit(uint8_t val);
+T81Number t81_zero(void);
+T81Number t81_one(void);
+void      t81_normalize(T81Number* n);
+T81Number t81_add(const T81Number* a, const T81Number* b);
+T81Number t81_sub(const T81Number* a, const T81Number* b);
+T81Number t81_mul(const T81Number* a, const T81Number* b);
+T81Number t81_negate(const T81Number* a);
+void      t81_print(const T81Number* n);
 
-    #[test]
-    fn test_subtraction() {
-        let a = T81Number::from_digits(vec![T81Digit(5), T81Digit(1)], false);
-        let b = T81Number::from_digits(vec![T81Digit(3)], false);
-        let c = a - b;
-        assert_eq!(c, T81Number::from_digits(vec![T81Digit(2), T81Digit(1)], false));
-    }
-
-    #[test]
-    fn test_multiplication() {
-        let a = T81Number::from_digits(vec![T81Digit(3)], false);
-        let b = T81Number::from_digits(vec![T81Digit(4)], false);
-        let c = a * b;
-        assert_eq!(c, T81Number::from_digits(vec![T81Digit(12)], false));
-    }
-
-    #[test]
-    fn test_negation() {
-        let a = T81Number::from_digits(vec![T81Digit(7), T81Digit(2)], false);
-        let neg_a = -a.clone();
-        assert_eq!(neg_a.negative, true);
-        let double_neg = -neg_a;
-        assert_eq!(double_neg, a);
-    }
-}
+#endif
+@#
