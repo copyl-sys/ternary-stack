@@ -1,10 +1,10 @@
-@* hanoivm_vm.cweb | HanoiVM Execution Core — AI-Aware, Recursive, and Config-Integrated *@
-
+@* hanoivm_vm.cweb | HanoiVM Execution Core — AI-Aware, Recursive, and Config-Integrated
 This file defines the main execution loop for HanoiVM:
-- Executes T81, T243, and T729 instruction sets
-- Applies Axion AI hooks via axion_signal and entropy tracing
-- Supports runtime promotion/demotion between ternary levels
-- Implements recursion ops (FIB, FACT), tensor ops, and stack-aware promotion
+- Executes T81, T243, and T729 instruction sets.
+- Applies Axion AI hooks via axion_signal and entropy tracing.
+- Supports runtime promotion/demotion between ternary levels.
+- Implements recursion operations (FIB, FACT), tensor ops, and stack-aware promotion.
+- Integrates logging, telemetry, and external monitoring hooks.
 @#
 
 @<Include Dependencies@>=
@@ -21,6 +21,8 @@ This file defines the main execution loop for HanoiVM:
 #include "t243bigint.h"
 #include "t81recursion.h"
 #include "hvm_promotion.h"
+#include "logging.h"       // New: Logging & telemetry integration header
+#include "telemetry.h"     // New: Telemetry and performance metrics
 @#
 
 @<Extern τ-registers@>=
@@ -69,6 +71,39 @@ uint81_t pop81u(void) {
 #define OP_PROMOTE_T729   0xF3
 #define OP_DEMOTE_T243    0xF4
 #define OP_DEMOTE_T81     0xF5
+#define OP_NOP            0x00  // Assuming 0x00 as NOP
+#define OP_PUSH           0x10  // Example opcode value for PUSH
+#define OP_ADD            0x11
+#define OP_SUB            0x12
+#define OP_MUL            0x13
+#define OP_DIV            0x14
+#define OP_MOD            0x15
+#define OP_NEG            0x16
+#define OP_ABS            0x17
+#define OP_CMP3           0x18
+#define OP_TNN_ACCUM      0x19
+#define OP_T81_MATMUL     0x1A
+#define OP_T243_ADD       0x1B
+#define OP_T243_MUL       0x1C
+#define OP_T243_PRINT     0x1D
+#define OP_HALT           0xFF
+@#
+
+@<Integration & Telemetry Hooks@>=
+// Log a trace message if debug is enabled.
+void trace_log(HVMContext *ctx, uint8_t opcode) {
+    if (ENABLE_DEBUG_MODE) {
+        char trace[128];
+        snprintf(trace, sizeof(trace), "[TRACE] OP[%s] at IP=%zu", opcode_name(opcode), ctx->ip - 1);
+        axion_log(trace);
+    }
+}
+
+// Hook to update telemetry data.
+void update_telemetry(HVMContext *ctx, uint8_t opcode) {
+    // TODO: Collect metrics (e.g., cycle count, memory usage) and update telemetry system.
+    telemetry_update(ctx->ip, opcode);
+}
 @#
 
 @<VM Execution Function@>=
@@ -83,28 +118,33 @@ void execute_vm(void) {
 
     t81_vm_init();  // One-time opcode extension registration
 
+    // Main execution loop.
     while (!ctx.halted && ctx.ip < hvm_code_size) {
         uint8_t opcode = hvm_code[ctx.ip++];
-        axion_signal(opcode);  // Hook into Axion AI
+        axion_signal(opcode);  // Call Axion AI hook.
         τ[AXION_REGISTER_INDEX] = axion_get_optimization();
 
-        if (ENABLE_DEBUG_MODE) {
-            char trace[128];
-            snprintf(trace, sizeof(trace), "[TRACE] OP[%s] at IP=%zu", opcode_name(opcode), ctx.ip - 1);
-            axion_log(trace);
-        }
+        trace_log(&ctx, opcode);
+        update_telemetry(&ctx, opcode);
 
+        // Handle mode and stack promotions/demotions.
         TRACE_MODE(&ctx);
         PROMOTE_T243(&ctx);
         PROMOTE_T729(&ctx);
         DEMOTE_STACK(&ctx);
 
+        // Execute opcode
         switch (opcode) {
-            case OP_PROMOTE_T243: promote_to_t243(&ctx); break;
-            case OP_PROMOTE_T729: promote_to_t729(&ctx); break;
+            case OP_PROMOTE_T243:
+                promote_to_t243(&ctx);
+                break;
+            case OP_PROMOTE_T729:
+                promote_to_t729(&ctx);
+                break;
             case OP_DEMOTE_T243:
-            case OP_DEMOTE_T81: demote_stack(&ctx); break;
-
+            case OP_DEMOTE_T81:
+                demote_stack(&ctx);
+                break;
             case OP_T729_DOT: {
                 TernaryHandle b = stack_pop();
                 TernaryHandle a = stack_pop();
@@ -113,14 +153,12 @@ void execute_vm(void) {
                 stack_push(r);
                 break;
             }
-
             case OP_T729_PRINT: {
                 TernaryHandle a = stack_pop();
                 printf("[T729] Tensor @ %p\n", a.data);
                 stack_push(a);
                 break;
             }
-
             case OP_RECURSE_FACT: {
                 T81BigIntHandle n = stack_pop();
                 T81BigIntHandle r;
@@ -131,7 +169,6 @@ void execute_vm(void) {
                 t81bigint_free(n);
                 break;
             }
-
             case OP_RECURSE_FIB: {
                 T81BigIntHandle n = stack_pop();
                 T81BigIntHandle r;
@@ -142,32 +179,47 @@ void execute_vm(void) {
                 t81bigint_free(n);
                 break;
             }
-
-            case OP_NOP: break;
-
+            case OP_NOP:
+                break;
             case OP_PUSH: {
                 if (ctx.ip + 8 >= hvm_code_size) {
-                    fprintf(stderr, "[VM] PUSH operand overflow\n"); return;
+                    fprintf(stderr, "[VM] PUSH operand overflow\n");
+                    return;
                 }
                 uint81_t val = fetch_operand(&hvm_code[ctx.ip]);
                 ctx.ip += 9;
                 push81u(val);
                 break;
             }
-
-            case OP_ADD: add81(); break;
-            case OP_SUB: sub81(); break;
-            case OP_MUL: mul81(); break;
-            case OP_DIV: div81(); break;
-            case OP_MOD: mod81(); break;
-            case OP_NEG: neg81(); break;
-            case OP_ABS: abs81(); break;
-            case OP_CMP3: cmp381(); break;
-
+            case OP_ADD:
+                add81();
+                break;
+            case OP_SUB:
+                sub81();
+                break;
+            case OP_MUL:
+                mul81();
+                break;
+            case OP_DIV:
+                div81();
+                break;
+            case OP_MOD:
+                mod81();
+                break;
+            case OP_NEG:
+                neg81();
+                break;
+            case OP_ABS:
+                abs81();
+                break;
+            case OP_CMP3:
+                cmp381();
+                break;
             case OP_TNN_ACCUM:
             case OP_T81_MATMUL: {
                 if (ctx.ip + 17 >= hvm_code_size) {
-                    fprintf(stderr, "[VM] AI op operand overflow\n"); return;
+                    fprintf(stderr, "[VM] AI op operand overflow\n");
+                    return;
                 }
                 uint81_t a = fetch_operand(&hvm_code[ctx.ip]);
                 uint81_t b = fetch_operand(&hvm_code[ctx.ip + 9]);
@@ -176,7 +228,6 @@ void execute_vm(void) {
                 push81u(result);
                 break;
             }
-
             case OP_T243_ADD:
             case OP_T243_MUL: {
                 TernaryHandle b = stack_pop();
@@ -189,7 +240,6 @@ void execute_vm(void) {
                 stack_push(r);
                 break;
             }
-
             case OP_T243_PRINT: {
                 TernaryHandle a = stack_pop();
                 char* str;
@@ -199,11 +249,9 @@ void execute_vm(void) {
                 stack_push(a);
                 break;
             }
-
             case OP_HALT:
                 ctx.halted = 1;
                 break;
-
             default:
                 fprintf(stderr, "[VM] Unknown opcode 0x%02X @IP=%zu\n", opcode, ctx.ip - 1);
                 return;
