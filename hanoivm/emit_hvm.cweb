@@ -1,13 +1,15 @@
-@* T81Lang HVM Emitter — emit_hvm.cweb
-This module reads IR lines and outputs `.hvm` symbolic or raw encodings.
-It currently emits textual `.hvm` but is structured to allow binary output later.
-@c
+@* emit_hvm.cweb | HVM Bytecode Emitter from IR *@
 
+This module converts IR emitted by `t81lang_irgen.cweb` into symbolic `.hvm` bytecode,
+preserving register names, opcodes, and control flow structure.
+
+@c
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+@#
 
-@<Opcode Enum Mapping@>
+@d IRType Codes
 #define IR_NOP      0
 #define IR_LOAD     1
 #define IR_STORE    2
@@ -21,67 +23,64 @@ It currently emits textual `.hvm` but is structured to allow binary output later
 #define IR_JUMP_IF 10
 @#
 
-@<Parsed IR Line Struct@>=
-typedef struct {
-    int opcode;
-    char arg1[64];
-    char arg2[64];
-    char result[64];
-} ParsedIR;
-@#
-
-@<IR Line Parser@>=
-int parse_ir_line(const char* line, ParsedIR* out) {
-    if (!line || !out) return 0;
-    memset(out, 0, sizeof(ParsedIR));
-    return sscanf(line, "%d %63s %63s -> %63s", &out->opcode, out->arg1, out->arg2, out->result);
-}
-@#
-
-@<Emit HVM Instruction Textual@>=
-void emit_hvm_instruction(FILE* out, ParsedIR* ir) {
-    switch (ir->opcode) {
+@<Helper Functions@>=
+void emit_instruction(FILE* out, int opcode, const char* arg1, const char* arg2, const char* result) {
+    switch (opcode) {
         case IR_LOAD:
-            fprintf(out, "LOAD %s -> %s\n", ir->arg1, ir->result); break;
+            fprintf(out, "LOAD %s -> %s\n", arg1, result);
+            break;
         case IR_STORE:
-            fprintf(out, "STORE %s -> %s\n", ir->arg1, ir->result); break;
+            fprintf(out, "STORE %s -> %s\n", arg1, result);
+            break;
         case IR_ADD:
-            fprintf(out, "ADD %s %s -> %s\n", ir->arg1, ir->arg2, ir->result); break;
+            fprintf(out, "ADD %s %s -> %s\n", arg1, arg2, result);
+            break;
         case IR_SUB:
-            fprintf(out, "SUB %s %s -> %s\n", ir->arg1, ir->arg2, ir->result); break;
+            fprintf(out, "SUB %s %s -> %s\n", arg1, arg2, result);
+            break;
         case IR_MUL:
-            fprintf(out, "MUL %s %s -> %s\n", ir->arg1, ir->arg2, ir->result); break;
+            fprintf(out, "MUL %s %s -> %s\n", arg1, arg2, result);
+            break;
         case IR_DIV:
-            fprintf(out, "DIV %s %s -> %s\n", ir->arg1, ir->arg2, ir->result); break;
+            fprintf(out, "DIV %s %s -> %s\n", arg1, arg2, result);
+            break;
         case IR_RETURN:
-            fprintf(out, "RETURN %s\n", ir->arg1); break;
+            fprintf(out, "RETURN %s\n", arg1);
+            break;
         case IR_LABEL:
-            fprintf(out, "LABEL %s:\n", ir->result); break;
+            fprintf(out, "LABEL %s:\n", result);
+            break;
         case IR_JUMP:
-            fprintf(out, "JUMP %s\n", ir->result); break;
+            fprintf(out, "JUMP %s\n", result);
+            break;
         case IR_JUMP_IF:
-            fprintf(out, "JUMP_IF %s -> %s\n", ir->arg1, ir->result); break;
+            fprintf(out, "JUMP_IF %s -> %s\n", arg1, result);
+            break;
+        case IR_NOP:
+            fprintf(out, "NOP\n");
+            break;
         default:
-            fprintf(out, "; UNKNOWN OPCODE %d\n", ir->opcode); break;
+            fprintf(out, "; UNKNOWN OPCODE %d\n", opcode);
+            break;
     }
 }
 @#
 
-@<Emit HVM From IR File@>=
+@<Emit HVM Binary Format@>=
 void emit_hvm(const char* ir_file, const char* out_file) {
     FILE* in = fopen(ir_file, "r");
     FILE* out = fopen(out_file, "w");
     if (!in || !out) {
-        fprintf(stderr, "[emit_hvm] Failed to open `%s` or `%s`\n", ir_file, out_file);
+        fprintf(stderr, "[emit_hvm] Error: Cannot open files.\n");
         return;
     }
 
     char line[256];
-    ParsedIR ir;
-
     while (fgets(line, sizeof(line), in)) {
-        if (parse_ir_line(line, &ir) >= 1) {
-            emit_hvm_instruction(out, &ir);
+        int opcode;
+        char arg1[64] = {0}, arg2[64] = {0}, result[64] = {0};
+        if (sscanf(line, "%d %63s %63s -> %63s", &opcode, arg1, arg2, result) >= 1) {
+            emit_instruction(out, opcode, arg1, arg2, result);
         }
     }
 
@@ -91,7 +90,7 @@ void emit_hvm(const char* ir_file, const char* out_file) {
 }
 @#
 
-@<Unit Test Harness@>=
+@d Unit Test Entry (Optional)
 #ifdef TEST_HVM_EMIT
 int main() {
     emit_hvm("output.ir", "test.hvm");
