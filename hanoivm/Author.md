@@ -6,7 +6,7 @@
 
 Philadelphia, PA, USA  
 📞 215-TI6-1212
-📧 sansdisk0134@gmail.com 
+📧 admin@copyleftsystems.com 
 🔗 #DigitalKitchen
 
 ---
