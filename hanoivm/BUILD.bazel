@@ -1,5 +1,3 @@
-# BUILD file for HanoiVM disassembler and symbolic ternary CI test
-
 # ----------------------------- ADVANCED TESTS -----------------------------
 
 genrule(
@@ -123,7 +121,7 @@ cc_binary(
     deps = [],
 )
 
-# --------------------------- AXION AI + GPU BACKEND TESTS ---------------------------
+# -------------------------- AXION AI + GPU BACKEND TESTS --------------------------
 
 genrule(
     name = "generate_test_axion_ai_hvm",
@@ -148,7 +146,7 @@ cc_binary(
     deps = [],
 )
 
-# ---------------------------- GAIA/CUDA GPU BACKEND TEST ----------------------------
+# -------------------------- GAIA/CUDA GPU BACKEND TEST --------------------------
 
 cc_binary(
     name = "test_gaia_transform",
@@ -168,7 +166,7 @@ cc_binary(
     ],
 )
 
-# ---------------------------- T81 PATTERN TEST ----------------------------
+# -------------------------- T81 PATTERN TEST --------------------------
 
 cc_binary(
     name = "t81_patterns_test",
@@ -179,7 +177,7 @@ cc_binary(
     ],
 )
 
-# --------------------------- SIMULATION + TIER PROMOTION ---------------------------
+# ------------------------- SIMULATION + TIER PROMOTION -------------------------
 
 cc_binary(
     name = "recursive_tier_demo",
@@ -192,7 +190,7 @@ cc_binary(
     ],
 )
 
-# ---------------------------- T81LANG COMPILER PIPELINE ----------------------------
+# -------------------------- T81LANG COMPILER PIPELINE --------------------------
 
 cc_binary(
     name = "t81lang_parser",
@@ -235,7 +233,7 @@ cc_binary(
     deps = [],
 )
 
-# ---------------------------- T81LANG SAMPLE TEST FLOW ----------------------------
+# -------------------------- T81LANG SAMPLE TEST FLOW --------------------------
 
 filegroup(
     name = "t81_samples",
@@ -258,6 +256,56 @@ sh_test(
         "samples/hello_world.t81",
         "samples/hello_world.hvm"
     ],
+)
+
+# ----------------------- SYMBOLIC AI GRAPH IR TESTS -----------------------
+
+genrule(
+    name = "generate_test_logicgraph_hvm",
+    srcs = ["test_logicgraph_hvm.cweb"],
+    outs = ["tests/test_logicgraph.hvm"],
+    cmd = "$(location //test_logicgraph_hvm:test_logicgraph_hvm) > $(OUTS)",
+    tools = ["//test_logicgraph_hvm:test_logicgraph_hvm"],
+)
+
+sh_test(
+    name = "disasm_logicgraph_test",
+    srcs = ["tests/disasm_logicgraph_test.sh"],
+    data = [
+         "//disassembler:disassembler",
+         "tests/test_logicgraph.hvm"
+    ],
+)
+
+cc_binary(
+    name = "test_logicgraph_hvm",
+    srcs = ["test_logicgraph_hvm.cweb"],
+    deps = [],
+)
+
+# ----------------------- ENHANCED VM EXECUTION TESTS -----------------------
+
+genrule(
+    name = "generate_test_vm_integration",
+    srcs = ["test_vm_integration.cweb"],
+    outs = ["tests/test_vm_integration.hvm"],
+    cmd = "$(location //test_vm_integration:test_vm_integration) > $(OUTS)",
+    tools = ["//test_vm_integration:test_vm_integration"],
+)
+
+sh_test(
+    name = "disasm_vm_integration_test",
+    srcs = ["tests/disasm_vm_integration_test.sh"],
+    data = [
+         "//disassembler:disassembler",
+         "tests/test_vm_integration.hvm"
+    ],
+)
+
+cc_binary(
+    name = "test_vm_integration",
+    srcs = ["test_vm_integration.cweb"],
+    deps = [],
 )
 
 # ----------------------------- CLEANUP -----------------------------
