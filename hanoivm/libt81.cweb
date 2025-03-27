@@ -80,6 +80,13 @@ typedef struct T81TensorImpl {
 } T81TensorImpl;
 @#
 
+@<T81Opcode Internal Definition@>=
+typedef struct T81OpcodeImpl {
+    uint8_t encoded;
+    const char* name;
+} T81OpcodeImpl;
+@#
+
 @<T81BigInt Functions@>=
 T81BigInt t81_bigint_new_from_int64(int64_t value) {
     T81BigIntImpl* bigint = malloc(sizeof(T81BigIntImpl));
@@ -337,6 +344,35 @@ void t81_tensor_set(T81Tensor t, size_t* indices, T81Float val) {
 }
 @#
 
+@<T81Opcode Functions@>=
+static const char* t81_opcode_lookup(uint8_t code) {
+    switch (code) {
+        case 0x00: return "NOP";
+        case 0x10: return "PUSH";
+        case 0x11: return "ADD";
+        case 0x12: return "SUB";
+        case 0xFF: return "HALT";
+        default:   return "UNKNOWN";
+    }
+}
+
+T81Opcode t81_opcode_new(uint8_t encoded) {
+    T81Opcode o = malloc(sizeof(T81OpcodeImpl));
+    if (!o) exit(1);
+    o->encoded = encoded;
+    o->name = t81_opcode_lookup(encoded);
+    return o;
+}
+
+const char* t81_opcode_name(T81Opcode op) {
+    return op->name;
+}
+
+void t81_opcode_free(T81Opcode op) {
+    free(op);
+}
+@#
+
 @h libt81.h
 #ifndef LIBT81_H
 #define LIBT81_H
@@ -352,6 +388,7 @@ typedef struct T81VectorImpl*     T81Vector;
 typedef struct T81MatrixImpl*     T81Matrix;
 typedef struct T81PolynomialImpl* T81Polynomial;
 typedef struct T81TensorImpl* T81Tensor;
+typedef struct T81OpcodeImpl* T81Opcode;
 
 // T81BigInt
 T81BigInt t81_bigint_new_from_int64(int64_t value);
@@ -398,6 +435,10 @@ void      t81_tensor_free(T81Tensor t);
 T81Float  t81_tensor_get(T81Tensor t, size_t* indices);
 void      t81_tensor_set(T81Tensor t, size_t* indices, T81Float val);
 
+// T81Optcode
+T81Opcode    t81_opcode_new(uint8_t encoded);
+const char*  t81_opcode_name(T81Opcode op);
+void         t81_opcode_free(T81Opcode op);
 
 #endif
 @#
