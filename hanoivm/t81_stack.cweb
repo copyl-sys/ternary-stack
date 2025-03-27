@@ -11,18 +11,9 @@ Included Features:
 
 @#
 
-@<Include Dependencies@>=
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include "config.h"
-#include "ai_hook.h"
-#include "hvm_loader.h"
-#include "libt81.cweb"
-@#
-
-#define T81_STACK_SIZE 2187
-#define STACK_OVERFLOW_ERR -1
+include "libt81.h"
+#include "libt243.h"
+#include "libt729.h"
 #define STACK_UNDERFLOW_ERR -2
 
 @* Stack State Structure@<=
