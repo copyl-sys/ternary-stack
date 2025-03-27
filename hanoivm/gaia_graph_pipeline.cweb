@@ -1,0 +1,100 @@
+@* GPU Graph Pipeline with CUDA.
+This document demonstrates a minimal viable GPU graph pipeline implemented in CUDA.
+It computes the degree of each vertex in a graph represented as an edge list.
+ 
+Recommendations:
+1. **Interface Integration:** Create wrapper functions to convert Hanoivm's internal graph data structures into the edge list format.
+2. **Error Handling:** Expand the CUDA API error checking via the provided macro.
+3. **Logging & Profiling:** Integrate logging calls and profiling hooks to capture GPU utilization and performance metrics.
+4. **Modular Design:** Modularize the interface to allow for the addition of advanced graph algorithms.
+5. **Future Expansion:** Consider adding support for more complex graph operations (e.g., traversal, connectivity analysis).
+
+@c
+#include <stdio.h>
+#include <stdlib.h>
+#include <cuda_runtime.h>
+
+@* Define error checking macro.
+This macro encapsulates CUDA API calls and checks for errors.
+@c
+@<Error Checking Macros@>=
+#define CUDA_CALL(call)                                     \
+    do {                                                    \
+        cudaError_t err = (call);                           \
+        if (err != cudaSuccess) {                           \
+            fprintf(stderr, "CUDA error at %s:%d: %s\n",    \
+                    __FILE__, __LINE__, cudaGetErrorString(err)); \
+            exit(EXIT_FAILURE);                             \
+        }                                                   \
+    } while (0)
+@*
+
+@* Kernel Function.
+This kernel computes the degree for each vertex in the given edge list.
+Each edge is represented as a pair (u, v) and degrees are computed using atomic operations.
+@c
+__global__ void computeDegrees(int *edges, int numEdges, int *degrees) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < numEdges) {
+        int u = edges[2 * idx];
+        int v = edges[2 * idx + 1];
+        // Increment degree for the start vertex.
+        atomicAdd(&degrees[u], 1);
+        // For non-self-loop edges, increment the degree for the end vertex.
+        if (u != v) {
+            atomicAdd(&degrees[v], 1);
+        }
+    }
+}
+
+@* Main Function.
+Prepares the data, launches the kernel, and prints the resulting vertex degrees.
+@c
+int main(void) {
+    // Define the graph: 5 vertices, 6 edges.
+    const int numVertices = 5;
+    const int numEdges = 6;
+    int h_edges[] = {
+        0, 1,  // Edge from vertex 0 to vertex 1.
+        0, 2,  // Edge from vertex 0 to vertex 2.
+        1, 2,  // Edge from vertex 1 to vertex 2.
+        1, 3,  // Edge from vertex 1 to vertex 3.
+        2, 3,  // Edge from vertex 2 to vertex 3.
+        3, 4   // Edge from vertex 3 to vertex 4.
+    };
+
+    // Allocate host memory for vertex degrees.
+    int h_degrees[numVertices] = {0};
+
+    // Device pointers.
+    int *d_edges, *d_degrees;
+    CUDA_CALL(cudaMalloc((void**)&d_edges, numEdges * 2 * sizeof(int)));
+    CUDA_CALL(cudaMalloc((void**)&d_degrees, numVertices * sizeof(int)));
+
+    // Copy the edge list from host to device.
+    CUDA_CALL(cudaMemcpy(d_edges, h_edges, numEdges * 2 * sizeof(int), cudaMemcpyHostToDevice));
+    // Initialize the degrees array on the device to zero.
+    CUDA_CALL(cudaMemset(d_degrees, 0, numVertices * sizeof(int)));
+
+    // Launch the kernel.
+    int threadsPerBlock = 256;
+    int blocks = (numEdges + threadsPerBlock - 1) / threadsPerBlock;
+    computeDegrees<<<blocks, threadsPerBlock>>>(d_edges, numEdges, d_degrees);
+    CUDA_CALL(cudaGetLastError());
+    CUDA_CALL(cudaDeviceSynchronize());
+
+    // Copy the computed degrees back to the host.
+    CUDA_CALL(cudaMemcpy(h_degrees, d_degrees, numVertices * sizeof(int), cudaMemcpyDeviceToHost));
+
+    // Print the vertex degrees.
+    printf("Vertex degrees:\n");
+    for (int i = 0; i < numVertices; i++) {
+        printf("Vertex %d: %d\n", i, h_degrees[i]);
+    }
+
+    // Free device memory.
+    CUDA_CALL(cudaFree(d_edges));
+    CUDA_CALL(cudaFree(d_degrees));
+
+    return 0;
+}
