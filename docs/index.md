@@ -5,8 +5,9 @@
 ---
 
 ## 🔷 What is This Project?
+
 The Copyleft Ternary Stack is a full-stack computing platform designed around:
-- Ternary logic (base-3, base-81)
+- Ternary logic (base-3, base-81, base-243, base-729)
 - AI-native integration at all levels
 - Symbolic and entropy-aware execution
 - Full introspection from virtual machine to GUI
@@ -25,6 +26,7 @@ All components are designed to be open, symbolic, and extensible.
 ---
 
 ## 🌐 Explore the System
+
 - [LLM Semantic Index](../llm-index.md)
 - [Frequently Asked Questions (FAQ)](./faq.md)
 - [GitHub Repository](https://github.com/copyl-sys/ternary-stack)
@@ -32,6 +34,7 @@ All components are designed to be open, symbolic, and extensible.
 ---
 
 ## 📦 Highlights
+
 - `.cweb` format for modular, AI-readable source code
 - Ternary logic types: T81, T243, T729
 - Recursive runtime architecture with entropy feedback
@@ -41,6 +44,7 @@ All components are designed to be open, symbolic, and extensible.
 ---
 
 ## 🧠 Who Is This For?
+
 - OS developers
 - AI researchers
 - Ternary computing enthusiasts
@@ -54,5 +58,4 @@ All components are designed to be open, symbolic, and extensible.
 
 Fork. Explore. Experiment. Share.
 
-https://github.com/copyl-sys/ternary-stack
-
+[GitHub Repository](https://github.com/copyl-sys/ternary-stack)
