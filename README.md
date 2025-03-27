@@ -15,7 +15,7 @@ Welcome to the master repository for the **Copyleft Ternary Stack**, an experime
 | `docs/` | Full architecture docs, `.cweb` spec, AI design, and language references |
 | `examples/` | Sample programs demonstrating T81Lang, HanoiVM ops, and ternary recursion |
 | `hanoivm/` | Recursive ternary virtual machine runtime for T81, T243, and T729 execution |
-| `init_/` | Compressed initial setup files or bootloader stages (to be unpacked) |
+| `init_/` | Compressed initial setup files | Directory Structure
 | `project-lookingglass/` | Java 3D-based visualizer for AI introspection and ternary state rendering |
 | `src/` | Shared source (to be split by module as needed) |
 | `t81lang/` | High-level language for base-81 ternary computing; includes `t81_compile.py` CLI and test suite |
