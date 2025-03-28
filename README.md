@@ -94,3 +94,4 @@ This repository is LLM-aware and includes:
 - "Special Thanks to "xAI" and "OpenAI" for their assistance along the way; none of this would have been possible without you!"
 - "Yes, I expect errors; no I am not a perfectionist."
 - "Heavily Commented Sourcecode is source-code; get over yourself if it doesn't work." -lear(n);
+- "Besides; it was my $20.00, not yours!"
