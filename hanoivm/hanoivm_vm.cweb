@@ -92,6 +92,7 @@ uint81_t pop81u(void) {
 #define OP_T243_MUL       0x1C
 #define OP_T243_PRINT     0x1D
 #define OP_HALT           0xFF
+#define OP_RECURSE_DISPATCH 0x1E
 @#
 
 @<Integration & Telemetry Hooks@>=
@@ -252,6 +253,10 @@ void execute_vm(void) {
                 printf("[T243] %s\n", str);
                 free(str);
                 stack_push(a);
+                break;
+            }
+            case OP_RECURSE_DISPATCH: {
+                dispatch_recursive_symbolic();
                 break;
             }
             case OP_HALT:
