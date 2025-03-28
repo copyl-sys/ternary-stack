@@ -3,6 +3,7 @@ Fast iteration; slow polish.
 
 Recommended to ask OpenAI or xAI for assistance in understanding code.
 
+Example; "please profile this repository; https://github.com/copyl-sys/hanoivm.git
 .   .   .
 
 Here is the updated `README.md` based on the provided project structure and information:
