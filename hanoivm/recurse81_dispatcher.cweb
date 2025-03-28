@@ -4,6 +4,9 @@
 #include "libt243.h"
 #include "libt729.h"
 #include "recursive81.cweb"
+#include "t81_stack.h"
+#include "ternary_base.h"
+#include "hanoivm_vm.h"
 
 void map81_matrix(T81Matrix* mat, void (*fn)(void)) {
     for (int i = 0; i < mat->rows; ++i) {
@@ -91,6 +94,18 @@ void recurse81_dispatch(void* obj, TernaryTypeTag tag, void (*fn)(void)) {
             printf("[RECURSE81] Unsupported type tag: %d\n", tag);
             break;
     }
+}
+
+void default_symbolic_callback(void) {
+    add81(); // Simple ternary symbolic operation as placeholder
+}
+
+void dispatch_recursive_symbolic(void) {
+    uint81_t tag_raw = pop81u();
+    uint81_t obj_ptr = pop81u();
+    TernaryTypeTag tag = (TernaryTypeTag)(tag_raw.a); // assume tag fits in a.u
+    void* obj = (void*)(uintptr_t)obj_ptr.a;
+    recurse81_dispatch(obj, tag, default_symbolic_callback);
 }
 
 @* END
