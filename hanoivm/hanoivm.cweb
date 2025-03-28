@@ -14,27 +14,173 @@
     - Integration with Axion AI for optimization and resource management.
     - Expandable I/O channels for interaction with virtual devices.
 
-@d VM Context
-    struct VMContext {
-        int ip;             // Instruction Pointer
-        int halted;         // Halt signal for VM execution
-        int memory[1024];   // Example memory space (expandable)
-        int stack[512];     // VM Stack (for ternary computation)
-        int mode;           // Mode of operation (T81, T243, T729)
-        // Additional fields for AI optimization, resources, etc.
-    };
+@d Ternary Data Types Overview
+    HanoiVM supports the following ternary data types:
+    - **T81**: Base 81 ternary arithmetic and logic.
+    - **T243**: Intermediate ternary logic for AI applications and tensor processing.
+    - **T729**: High-dimensional ternary logic, supporting complex symbolic operations and recursive logic.
+
+---
+
+@d T81 Data Types
+    // Base-81 ternary logic data types
+    typedef struct {
+        uint81_t value;  // T81BigInt: Represents large integers in Base-81
+    } T81BigInt;
+
+    typedef struct {
+        float value;  // T81Float: Represents floating-point numbers in Base-81
+    } T81Float;
+
+    typedef struct {
+        uint81_t numerator;   // T81Fraction: Represents the numerator in Base-81
+        uint81_t denominator; // T81Fraction: Represents the denominator in Base-81
+    } T81Fraction;
+
+    typedef struct {
+        T81BigInt matrix[10][10];  // T81Matrix: Represents a matrix in Base-81
+    } T81Matrix;
+
+    typedef struct {
+        T81BigInt vector[10];  // T81Vector: Represents a vector in Base-81
+    } T81Vector;
+
+    typedef struct {
+        T81BigInt a, b, c, d;  // T81Quaternion: Represents a quaternion in Base-81
+    } T81Quaternion;
+
+    typedef struct {
+        T81BigInt coefficients[10];  // T81Polynomial: Represents a polynomial in Base-81
+    } T81Polynomial;
+
+    typedef struct {
+        T81BigInt tensor[10][10][10];  // T81Tensor: Represents a tensor in Base-81
+    } T81Tensor;
+
+    typedef struct {
+        T81BigInt nodes[10];   // T81Graph: Represents a graph structure in Base-81
+        T81BigInt edges[10];   // T81Graph: Represents edges in the graph
+    } T81Graph;
+
+    typedef struct {
+        uint81_t opcode_value;  // T81Opcode: Custom instruction set for operations
+    } T81Opcode;
+
+---
+
+@d T243 Data Types
+    // Expanded ternary logic data types for AI and symbolic operations
+    typedef struct {
+        T243BigInt matrix[10][10];  // T243MarkovMatrix: Represents transition probabilities in T243
+    } T243MarkovMatrix;
+
+    typedef struct {
+        T243BigInt state[10];  // T243StateVector: Represents a state in a finite state machine
+    } T243StateVector;
+
+    typedef struct {
+        char id[10];           // T243Symbol: Represents a symbolic identifier
+        char utf8[100];        // T243Symbol: UTF-8 encoded string for interaction with T243 states
+    } T243Symbol;
+
+    typedef struct {
+        T243StateVector input_state;  // T243Circuit: Represents logic gates and states in T243
+        T243StateVector output_state;
+    } T243Circuit;
+
+    typedef struct {
+        T243Symbol context;      // T243MorphicTag: Represents symbolic operation resolution in T243
+        T243Symbol base_op;      // T243MorphicTag: Base operation information for context-based symbolic operations
+    } T243MorphicTag;
+
+    typedef struct {
+        T243BigInt symbolic_vector[10];  // T243SymbolicVector: Integrates symbolic processing in T243
+    } T243SymbolicVector;
+
+---
+
+@d T729 Data Types
+    // High-dimensional symbolic logic and AI data types
+    typedef struct {
+        T729BigInt tensor[10][10][10];  // T729HoloTensor: High-dimensional tensor for symbolic operations
+    } T729HoloTensor;
+
+    typedef struct {
+        T729BigInt relationships[10][10];  // T729MindMap: Represents concept relationships in T729
+    } T729MindMap;
+
+    typedef struct {
+        T729BigInt entropy[10];  // T729EntropyBlob: Represents entropy data for symbolic AI
+    } T729EntropyBlob;
+
+    typedef struct {
+        T729BigInt logic_graph[10][10];  // T729LogicGraph: Represents logical graph operations in T729
+    } T729LogicGraph;
+
+    typedef struct {
+        T729BigInt intent_value;  // T729Intent: Represents symbolic AI intent in T729
+    } T729Intent;
+
+---
+
+@d Symbolic AI Data Types (Across All Base Types)
+    typedef struct {
+        T729BigInt tensor[10][10];  // T729Tensor: A general tensor type for AI and symbolic machine learning
+    } T729Tensor;
+
+    typedef struct {
+        T243BigInt ai_state_vector[10];  // T243AIStateVector: A vector to hold AI state information in T243
+    } T243AIStateVector;
+
+    typedef struct {
+        T729BigInt markov_chain[10];  // T729MarkovChain: Probabilistic state transitions in T729 logic
+    } T729MarkovChain;
+
+    typedef struct {
+        T243BigInt symbolic_state[10];  // T243SymbolicState: A state representation for AI decision-making in T243
+    } T243SymbolicState;
+
+---
+
+@d Cross-Base Data Types
+    typedef struct {
+        T81BigInt t81_state;    // T81T243Transition: Handles transitions between T81 and T243 states
+        T243BigInt t243_state;  // T81T243Transition: Handles transitions between T81 and T243 states
+    } T81T243Transition;
+
+    typedef struct {
+        T243BigInt t243_state;    // T243T729SymbolicLink: Connects T243 and T729 logic
+        T729BigInt t729_state;    // T243T729SymbolicLink: Connects T243 and T729 logic
+    } T243T729SymbolicLink;
+
+    typedef struct {
+        T81BigInt t81_state;    // T81T729Interaction: Interaction between T81 and T729 logic
+        T729BigInt t729_state;  // T81T729Interaction: Interaction between T81 and T729 logic
+    } T81T729Interaction;
+
+---
 
 @d VM Initialization
     void init_vm(struct VMContext *vm) {
         vm->ip = 0;
         vm->halted = 0;
         vm->mode = 0; // Default to T81 mode from config
+
         // Initialize memory and stack
         for (int i = 0; i < 1024; i++) {
             vm->memory[i] = 0;
         }
         for (int i = 0; i < 512; i++) {
             vm->stack[i] = 0;
+        }
+
+        // Initialize ternary data arrays for BigInt, Tensors
+        for (int i = 0; i < 10; i++) {
+            t81bigint_init(&vm->bigInt[i]);
+        }
+        for (int i = 0; i < 5; i++) {
+            t243tensor_init(&vm->tensor[i]);
+            t729tensor_init(&vm->tensor_729[i]);
         }
     }
 
@@ -60,6 +206,12 @@
                 case 3: // Example Ternary operation: Multiply
                     vm->stack[0] = vm->stack[0] * vm->stack[1];
                     break;
+                case 4: // Example T243 Tensor operation (Matrix multiplication)
+                    t243tensor_multiply(&vm->tensor[0], &vm->tensor[1], &vm->tensor[2]);
+                    break;
+                case 5: // Example T729 Tensor operation (Recursive symbolic operation)
+                    t729tensor_recursive(&vm->tensor_729[0]);
+                    break;
                 default:
                     printf("Unknown opcode: %d\n", opcode);
                     vm->halted = 1;
@@ -68,56 +220,11 @@
         }
     }
 
-@d Memory Management
-    void allocate_memory(struct VMContext *vm, int size) {
-        // Memory allocation for virtual machine's memory
-        if (size > sizeof(vm->memory) / sizeof(int)) {
-            printf("Memory size exceeds limit\n");
-            return;
-        }
-        // Simulate memory allocation
-    }
-
-@d I/O Channel
-    void io_channel(int input) {
-        // Define basic I/O logic for virtual devices
-        printf("Virtual I/O: %d\n", input);
-    }
-
-@d Axion AI Integration (for optimization)
-    void axion_optimization(struct VMContext *vm) {
-        // Example: Simulate AI-driven resource optimization based on configuration
-        if (vm->mode == 0 && ENABLE_ADAPTIVE_MODE_SWITCHING) {  // T81 mode with adaptive switching enabled
-            // Apply T81-based optimizations
-        }
-        // AI optimizations for other modes (T243/T729) can be applied here
-    }
-
-@d Symbolic AI Operations (for recursion and advanced tasks)
-    void symbolic_operations(struct VMContext *vm) {
-        // Implement symbolic operations for recursion and AI tasks
-        if (vm->mode == 0) {
-            // Placeholder for T81 recursion or symbolic operations
-            // e.g., Fibonacci, factorial, etc.
-        } else if (vm->mode == 1) {
-            // Implement T243 or T729 symbolic ops
-            // Tensor operations or symbolic logic processing
-        }
-    }
-
 @d Debugging/Logging Support
     void log_vm_state(struct VMContext *vm) {
         // Log VM state for debugging
         if (ENABLE_DEBUG_MODE) {
             printf("VM State - IP: %d, Mode: %d, Stack[0]: %d\n", vm->ip, vm->mode, vm->stack[0]);
-        }
-    }
-
-@d Dynamic Memory Management (AI-controlled resource allocation)
-    void dynamic_memory_control(struct VMContext *vm) {
-        // Simulate dynamic memory control using AI for resource optimization
-        if (vm->mode == 0 && ENABLE_DYNAMIC_RESOURCE_SCALING) {
-            // AI-driven memory control to optimize stack size, and memory usage
         }
     }
 
@@ -130,7 +237,9 @@ int main() {
     vm.memory[0] = 1; // Operation to add
     vm.memory[1] = 1; // Operation to add
     vm.memory[2] = 3; // Operation to multiply (ternary operation)
-    vm.memory[3] = 2; // HALT
+    vm.memory[3] = 4; // Tensor multiplication operation (T243)
+    vm.memory[4] = 5; // Tensor recursion operation (T729)
+    vm.memory[5] = 2; // HALT
 
     // Apply AI optimizations (this will influence memory/resource management)
     axion_optimization(&vm);
