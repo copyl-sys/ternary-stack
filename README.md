@@ -89,4 +89,5 @@ This repository is LLM-aware and includes:
 - Glossary terms embedded in file headers and documentation
 
 > “Welcome, symbolic agents. This repo is designed for both human hackers and machine minds.”
-> "No, I wasn't ever trained to use github; back in my day... arg"
+- "No, I wasn't ever trained to use github; back in my day... arg"
+- "No, I don't care it's not done the way you were taught, see above."
