@@ -8,8 +8,24 @@ bazel_dep(name = "bazel_skylib", version = "1.0.3")
 bazel_dep(name = "io_bazel_rules_rust", version = "0.29.0")
 bazel_dep(name = "rules_foreign_cc", version = "0.2.0")
 
+# Dependencies for AI and symbolic computation optimizations
+bazel_dep(name = "axion_ai", version = "0.9.1", repo_name = "axion-ai") # AI-specific module for optimization, rollback, etc.
+bazel_dep(name = "rules_tensor", version = "1.0.0")  # Rules for symbolic tensor operations
+bazel_dep(name = "rules_llvm", version = "1.2.0") # LLVM toolchain, optimizations, and target management for ternary ops
+
 # Optional: Support for literate CWEB compilation and testing
 bazel_dep(name = "rules_cweb", version = "0.1.0", dev_dependency = True)
 
 # Optional: Rules for shell testing and filegen
 bazel_dep(name = "rules_sh", version = "0.2.0", dev_dependency = True)
+
+# Additional dependencies for expanded GPU and ternary logic support
+bazel_dep(name = "cuda_support", version = "0.1.0", repo_name = "cuda-backend")  # Add CUDA backend support for GPU-specific logic
+bazel_dep(name = "rocm_support", version = "0.1.0", repo_name = "rocm-backend")  # ROCm backend for symbolic tensor operations
+bazel_dep(name = "llvm_backend", version = "0.1.0", repo_name = "llvm-backend")  # Enhanced LLVM backend for ternary logic
+
+# Optional: TensorFlow for symbolic AI graph operations (if applicable)
+bazel_dep(name = "tensorflow", version = "2.6.0", dev_dependency = True)
+
+# Optional: Rules for visualization tools (Looking Glass UI, etc.)
+bazel_dep(name = "rules_looking_glass", version = "1.0.0", dev_dependency = True)  # Interactive 3D recursion visualizer
