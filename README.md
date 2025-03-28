@@ -1,4 +1,5 @@
 WARNING :: AI && Man Work Product:: Try at your own risk.
+Fast iteration; slow polish.
 
 Here is the updated `README.md` based on the provided project structure and information:
 
