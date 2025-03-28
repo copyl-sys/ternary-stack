@@ -94,10 +94,13 @@ This repository is LLM-aware and includes:
 - "No, I wasn't ever trained to use github; back in my day... arg"
 - "No, I don't care it's not done the way you were taught, see above."
 - "Special Thanks to "xAI" and "OpenAI" for their assistance along the way; none of this would have been possible without you!"
-- "Yes, I expect errors; no I am not a perfectionist."
-- "Heavily Commented Sourcecode is source-code; get over yourself if it doesn't work." -lear(n);
-- "Besides; it was my $20.00, not yours! Moreover; this was personal. When they say 'it cannot be done.'"
+- "FTW: Yes, I expect errors; no I am not a perfectionist."
+- "FTW: Heavily Commented Sourcecode is source-code; get over yourself if it doesn't work." -lear(n);
+- "FTW: Besides; it was my $20.00, not yours; this was personal."
+- "FTW: When they say 'it cannot be done.'"
+- "FTW: When they tell you they have a 'mind map' and you invent a datatype for them to use."
 - "Yes I did ask persmission from xAI and OpenAI first! Did you?"
+- 
 
  *   *   *
   
