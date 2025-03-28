@@ -1,0 +1,96 @@
+@* RECURSE81 Dispatcher: Type-Aware Recursion Routing *@
+
+#include "libt81.h"
+#include "libt243.h"
+#include "libt729.h"
+#include "recursive81.cweb"
+
+void map81_matrix(T81Matrix* mat, void (*fn)(void)) {
+    for (int i = 0; i < mat->rows; ++i) {
+        for (int j = 0; j < mat->cols; ++j) {
+            push81(mat->data[i][j]);
+            fn();
+            mat->data[i][j] = pop81();
+        }
+    }
+}
+
+void traverse_graph81(T81Graph* graph, void (*fn)(void)) {
+    for (int i = 0; i < graph->node_count; ++i) {
+        push81(graph->nodes[i].value);
+        fn();
+        graph->nodes[i].value = pop81();
+        for (int j = 0; j < graph->nodes[i].edge_count; ++j) {
+            int target = graph->nodes[i].edges[j];
+            push81(graph->nodes[target].value);
+            fn();
+            graph->nodes[target].value = pop81();
+        }
+    }
+}
+
+void recurse81_poly_terms(T81Polynomial* poly, void (*fn)(void)) {
+    for (int i = 0; i < poly->term_count; ++i) {
+        push81(poly->terms[i].coefficient);
+        fn();
+        poly->terms[i].coefficient = pop81();
+        push81(poly->terms[i].exponent);
+        fn();
+        poly->terms[i].exponent = pop81();
+    }
+}
+
+void walk_markov243(T243MarkovMatrix* markov, void (*fn)(void)) {
+    for (int i = 0; i < markov->size; ++i) {
+        for (int j = 0; j < markov->size; ++j) {
+            push81(markov->transitions[i][j]);
+            fn();
+            markov->transitions[i][j] = pop81();
+        }
+    }
+}
+
+void analyze_entropy729(T729EntropyBlob* blob, void (*fn)(void)) {
+    for (int i = 0; i < blob->length; ++i) {
+        push81(blob->data[i]);
+        fn();
+        blob->data[i] = pop81();
+    }
+}
+
+void recurse81_dispatch(void* obj, TernaryTypeTag tag, void (*fn)(void)) {
+    switch (tag) {
+        case T81_VECTOR:
+            map81_vector((T81Vector*)obj, fn);
+            break;
+        case T81_TENSOR:
+            fold81_tensor((T81Tensor*)obj, (uint81_t (*)(uint81_t, uint81_t))fn);
+            break;
+        case T81_MATRIX:
+            map81_matrix((T81Matrix*)obj, fn);
+            break;
+        case T81_GRAPH:
+            traverse_graph81((T81Graph*)obj, fn);
+            break;
+        case T81_POLYNOMIAL:
+            recurse81_poly_terms((T81Polynomial*)obj, fn);
+            break;
+        case T243_MARKOV:
+            walk_markov243((T243MarkovMatrix*)obj, fn);
+            break;
+        case T243_CIRCUIT:
+            simulate_circuit243((T243Circuit*)obj);
+            break;
+        case T729_MINDMAP:
+            recurse81_mindmap((T729MindMap*)obj, (void (*)(T729MindMapNode*))fn);
+            break;
+        case T729_ENTROPY:
+            analyze_entropy729((T729EntropyBlob*)obj, fn);
+            break;
+        default:
+            printf("[RECURSE81] Unsupported type tag: %d\n", tag);
+            break;
+    }
+}
+
+@* END
