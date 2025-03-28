@@ -3,7 +3,7 @@
 #include "libt81.h"
 #include "libt243.h"
 #include "libt729.h"
-#include "recursive81.cweb"
+#include "recurse81.h" // Header interface for recursion engine
 #include "t81_stack.h"
 #include "ternary_base.h"
 #include "hanoivm_vm.h"
@@ -107,5 +107,45 @@ void dispatch_recursive_symbolic(void) {
     void* obj = (void*)(uintptr_t)obj_ptr.a;
     recurse81_dispatch(obj, tag, default_symbolic_callback);
 }
+
+void entropy_sensitive_callback(void) {
+    uint81_t val = pop81();
+    int entropy = axion_entropy(val);
+
+    if (entropy > 42) {
+        push81(val);
+        mul81(); // Entropy-amplified operation
+    } else {
+        push81(val);
+    }
+
+    char log_msg[128];
+    snprintf(log_msg, sizeof(log_msg), "[AXION] entropy=%d, value=%u", entropy, val.a);
+    axion_log(log_msg);
+}
+
+void dispatch_entropy_recursive(void) {
+    uint81_t tag_raw = pop81u();
+    uint81_t obj_ptr = pop81u();
+    TernaryTypeTag tag = (TernaryTypeTag)(tag_raw.a);
+    void* obj = (void*)(uintptr_t)obj_ptr.a;
+    recurse81_dispatch(obj, tag, entropy_sensitive_callback);
+}
+
+@h recurse81.h
+#ifndef RECURSE81_H
+#define RECURSE81_H
+
+#include "libt81.h"
+#include "libt243.h"
+#include "libt729.h"
+
+void recurse81_dispatch(void* obj, TernaryTypeTag tag, void (*fn)(void));
+void dispatch_recursive_symbolic(void);
+void dispatch_entropy_recursive(void);
+void default_symbolic_callback(void);
+void entropy_sensitive_callback(void);
+
+#endif // RECURSE81_H
 
 @* END
