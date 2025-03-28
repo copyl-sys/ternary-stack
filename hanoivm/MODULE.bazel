@@ -3,29 +3,44 @@ module(
     version = "0.9.1",
 )
 
-# Core dependencies
+# ----------------------------- CORE DEPENDENCIES -----------------------------
+
+# Basic utilities and core dependencies
 bazel_dep(name = "bazel_skylib", version = "1.0.3")
 bazel_dep(name = "io_bazel_rules_rust", version = "0.29.0")
 bazel_dep(name = "rules_foreign_cc", version = "0.2.0")
 
-# Dependencies for AI and symbolic computation optimizations
-bazel_dep(name = "axion_ai", version = "0.9.1", repo_name = "axion-ai") # AI-specific module for optimization, rollback, etc.
-bazel_dep(name = "rules_tensor", version = "1.0.0")  # Rules for symbolic tensor operations
-bazel_dep(name = "rules_llvm", version = "1.2.0") # LLVM toolchain, optimizations, and target management for ternary ops
+# ------------------- AI AND SYMBOLIC COMPUTATION OPTIMIZATIONS -------------------
 
-# Optional: Support for literate CWEB compilation and testing
+# Dependencies for AI and symbolic tensor-based operations
+bazel_dep(name = "axion_ai", version = "0.9.1", repo_name = "axion-ai")  # AI-specific optimization and resource management
+bazel_dep(name = "rules_tensor", version = "1.0.0")  # Tensor rules for symbolic operations
+bazel_dep(name = "rules_llvm", version = "1.2.0")  # LLVM toolchain for ternary optimizations
+
+# -------------------------- OPTIONAL SUPPORT FOR LITERATE CWEB --------------------------
+
+# Support for literate CWEB compilation and testing
 bazel_dep(name = "rules_cweb", version = "0.1.0", dev_dependency = True)
 
-# Optional: Rules for shell testing and filegen
+# ------------------------ SHELL TESTING AND FILEGEN SUPPORT ----------------------
+
+# Rules for shell testing and file generation
 bazel_dep(name = "rules_sh", version = "0.2.0", dev_dependency = True)
 
-# Additional dependencies for expanded GPU and ternary logic support
-bazel_dep(name = "cuda_support", version = "0.1.0", repo_name = "cuda-backend")  # Add CUDA backend support for GPU-specific logic
-bazel_dep(name = "rocm_support", version = "0.1.0", repo_name = "rocm-backend")  # ROCm backend for symbolic tensor operations
+# ------------------------ GPU AND TERNARY LOGIC BACKEND SUPPORT ------------------
+
+# Additional dependencies for GPU support and ternary logic backends
+bazel_dep(name = "cuda_support", version = "0.1.0", repo_name = "cuda-backend")  # CUDA support for GPU-accelerated logic
+bazel_dep(name = "rocm_support", version = "0.1.0", repo_name = "rocm-backend")  # ROCm support for GPU operations in symbolic tensor
 bazel_dep(name = "llvm_backend", version = "0.1.0", repo_name = "llvm-backend")  # Enhanced LLVM backend for ternary logic
+
+# ------------------------ TENSORFLOW FOR SYMBOLIC AI OPERATIONS ---------------------
 
 # Optional: TensorFlow for symbolic AI graph operations (if applicable)
 bazel_dep(name = "tensorflow", version = "2.6.0", dev_dependency = True)
 
-# Optional: Rules for visualization tools (Looking Glass UI, etc.)
-bazel_dep(name = "rules_looking_glass", version = "1.0.0", dev_dependency = True)  # Interactive 3D recursion visualizer
+# ------------------------ RULES FOR VISUALIZATION TOOLS --------------------------
+
+# Optional: Interactive 3D visualization tools (for recursion or ternary logic models)
+bazel_dep(name = "rules_looking_glass", version = "1.0.0", dev_dependency = True)
+
