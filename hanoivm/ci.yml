@@ -109,3 +109,39 @@ jobs:
           name: HanoiVM-Docs-v0.9
           path: |
             ./**/*.pdf
+
+  # Caching Dependencies for Faster Builds
+  cache-dependencies:
+    name: 💾 Cache Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🔄 Cache LLVM and other dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/llvm-17
+          key: ${{ runner.os }}-llvm-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-llvm-
+
+  # Matrix Builds for Parallel Testing
+  test-matrix:
+    name: 🧪 Test Across Environments
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        llvm: [17, 18] # Example of testing multiple LLVM versions
+        python: [3.8, 3.9] # Example of testing multiple Python versions
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ⚙️ Setup LLVM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-${{ matrix.llvm }} llvm-${{ matrix.llvm }}-dev clang-${{ matrix.llvm }} lld-${{ matrix.llvm }} cmake ninja-build
+
+      - name: 🧪 Run Unit Tests for Matrix Environment
+        run: |
+          cd build
+          ninja check-all
