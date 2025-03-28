@@ -1,4 +1,9 @@
-# 🚀 HanoiVM — Recursive Ternary Virtual Machine | Goal A) Alexis Linux; Goal B) Lilly Shea (ternary-linux);
+# 🚀 HanoiVM — Recursive Ternary Virtual Machine | 
+
+Goal A) Alexis Linux; (hybrid 'binary/ternary' linux via kernel module axion-io.ko);
+
+Goal B) Lilly Shea (ternary-linux; no module needed) // Note; I do not call it linux after this point.
+      Thank you for an education Linus; that is all. 
 
 **HanoiVM** is a recursive, AI-augmented **ternary virtual machine** built on a symbolic base-81 architecture. It serves as the execution core of the **Axion + T81Lang** ecosystem, enabling stack-tier promotion, symbolic AI opcodes, and entropy-aware transformations across three logic levels:
 
