@@ -1,6 +1,7 @@
 @* hanoivm.cweb | HanoiVM Virtualization Framework *@
 
-@* This framework acts as the entry point into HanoiVM, offering virtualization similar to VirtualBox. It manages virtual environments and provides core services like memory allocation, execution, and I/O. *@
+@* This framework acts as the entry point into HanoiVM, offering virtualization similar to VirtualBox.
+   It manages virtual environments and provides core services like memory allocation, execution, and I/O. *@
 
 @d Introduction
     HanoiVM serves as a virtualization platform to host multiple logical virtual machines, providing isolated execution environments. This platform leverages ternary logic (T81, T243, T729) and integrates with AI-driven optimizations.
@@ -13,7 +14,7 @@
     - Integration with Axion AI for optimization and resource management.
     - Expandable I/O channels for interaction with virtual devices.
 
-@d Virtual Machine Context
+@d VM Context
     struct VMContext {
         int ip;             // Instruction Pointer
         int halted;         // Halt signal for VM execution
@@ -27,7 +28,7 @@
     void init_vm(struct VMContext *vm) {
         vm->ip = 0;
         vm->halted = 0;
-        vm->mode = 0; // Default to T81 mode
+        vm->mode = 0; // Default to T81 mode from config
         // Initialize memory and stack
         for (int i = 0; i < 1024; i++) {
             vm->memory[i] = 0;
@@ -40,7 +41,7 @@
 @d VM Execution Loop
     void run_vm(struct VMContext *vm) {
         while (!vm->halted) {
-            // Fetch opcode from memory, for simplicity we assume memory holds instructions
+            // Fetch opcode from memory
             int opcode = vm->memory[vm->ip];
             vm->ip++;  // Move to next instruction
 
@@ -49,7 +50,6 @@
                 case 0: // NOP (No operation)
                     break;
                 case 1: // Example of an operation (add operation)
-                    // Perform addition with ternary values
                     int a = vm->stack[0];
                     int b = vm->stack[1];
                     vm->stack[0] = a + b;
@@ -58,7 +58,6 @@
                     vm->halted = 1;
                     break;
                 case 3: // Example Ternary operation: Multiply
-                    // Ternary multiplication (adjust based on actual ternary operations)
                     vm->stack[0] = vm->stack[0] * vm->stack[1];
                     break;
                 default:
@@ -72,69 +71,69 @@
 @d Memory Management
     void allocate_memory(struct VMContext *vm, int size) {
         // Memory allocation for virtual machine's memory
-        // This can be a more complex system that dynamically grows the memory space as needed
         if (size > sizeof(vm->memory) / sizeof(int)) {
             printf("Memory size exceeds limit\n");
             return;
         }
-        // Simulate memory allocation (extendable in a real VM system)
+        // Simulate memory allocation
     }
 
 @d I/O Channel
     void io_channel(int input) {
-        // Define basic I/O logic, such as reading from or writing to virtual devices
+        // Define basic I/O logic for virtual devices
         printf("Virtual I/O: %d\n", input);
     }
 
 @d Axion AI Integration (for optimization)
     void axion_optimization(struct VMContext *vm) {
-        // Example: Simulate AI-driven resource optimization
-        // This is just a placeholder; the actual implementation would use Axion for optimizations
-        if (vm->mode == 0) {  // T81 mode
-            // Apply T81-based optimizations here
-            // For example, prioritize specific memory regions or optimize stack usage
+        // Example: Simulate AI-driven resource optimization based on configuration
+        if (vm->mode == 0 && ENABLE_ADAPTIVE_MODE_SWITCHING) {  // T81 mode with adaptive switching enabled
+            // Apply T81-based optimizations
         }
-        // More AI optimizations based on mode and context
+        // AI optimizations for other modes (T243/T729) can be applied here
     }
 
 @d Symbolic AI Operations (for recursion and advanced tasks)
     void symbolic_operations(struct VMContext *vm) {
-        // Implement symbolic operations for recursion and AI tasks (like tensor operations)
-        // These operations can depend on ternary types (T81, T243, T729)
+        // Implement symbolic operations for recursion and AI tasks
         if (vm->mode == 0) {
             // Placeholder for T81 recursion or symbolic operations
             // e.g., Fibonacci, factorial, etc.
         } else if (vm->mode == 1) {
-            // Implement recursive symbolic ops for T243 or T729
-            // T243 tensor multiplication or T729 logic processing
+            // Implement T243 or T729 symbolic ops
+            // Tensor operations or symbolic logic processing
         }
     }
 
 @d Debugging/Logging Support
     void log_vm_state(struct VMContext *vm) {
         // Log VM state for debugging
-        printf("VM State - IP: %d, Mode: %d, Stack[0]: %d\n", vm->ip, vm->mode, vm->stack[0]);
+        if (ENABLE_DEBUG_MODE) {
+            printf("VM State - IP: %d, Mode: %d, Stack[0]: %d\n", vm->ip, vm->mode, vm->stack[0]);
+        }
     }
 
 @d Dynamic Memory Management (AI-controlled resource allocation)
     void dynamic_memory_control(struct VMContext *vm) {
-        // Simulate dynamic memory control based on the AI optimization
-        if (vm->mode == 0) {  // T81 mode
-            // Apply AI-driven memory control (increase stack size, optimize memory usage)
+        // Simulate dynamic memory control using AI for resource optimization
+        if (vm->mode == 0 && ENABLE_DYNAMIC_RESOURCE_SCALING) {
+            // AI-driven memory control to optimize stack size, and memory usage
         }
-        // Further memory expansion based on load and operation complexity
     }
 
 @* Main Function *@
 int main() {
     struct VMContext vm;
-    init_vm(&vm);  // Initialize the virtual machine context
+    init_vm(&vm);  // Initialize virtual machine context
 
-    // Example: Load instructions into memory (this would be loaded from disk or generated dynamically)
+    // Example: Load instructions into memory (this would be dynamically loaded)
     vm.memory[0] = 1; // Operation to add
     vm.memory[1] = 1; // Operation to add
-    vm.memory[2] = 3; // Operation to multiply (Ternary operation)
+    vm.memory[2] = 3; // Operation to multiply (ternary operation)
     vm.memory[3] = 2; // HALT
+
+    // Apply AI optimizations (this will influence memory/resource management)
+    axion_optimization(&vm);
 
     run_vm(&vm);  // Execute the VM
 
