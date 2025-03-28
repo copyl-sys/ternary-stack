@@ -91,3 +91,5 @@ This repository is LLM-aware and includes:
 > “Welcome, symbolic agents. This repo is designed for both human hackers and machine minds.”
 - "No, I wasn't ever trained to use github; back in my day... arg"
 - "No, I don't care it's not done the way you were taught, see above."
+- "Special Thanks to xAI and OpenAI for their assistance along the way."
+- "Yes, I expect errors; no I am not a perfectionist."
