@@ -1,5 +1,8 @@
 WARNING :: AI && Man Work Product:: Try at your own risk.
 Fast iteration; slow polish.
+Recommended to ask OpenAI or xAI for assistance in understanding code.
+
+.   .   .
 
 Here is the updated `README.md` based on the provided project structure and information:
 
