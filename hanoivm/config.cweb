@@ -1,8 +1,8 @@
 @* config.cweb | Centralized Configuration for HanoiVM *@
 
-This file defines the global configuration settings for the HanoiVM project.
-All components will read these settings to ensure consistent behavior across the system,
-while enabling dynamic AI and hardware-driven optimizations.
+@* This file defines the global configuration settings for the HanoiVM project.
+   All components will read these settings to ensure consistent behavior across the system,
+   while enabling dynamic AI and hardware-driven optimizations. *@
 
 ---
 
