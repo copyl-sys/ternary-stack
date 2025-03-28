@@ -1,3 +1,7 @@
+Here is the updated `README.md` based on the provided project structure and information:
+
+---
+
 # 🌐 Copyleft Systems — Unified Ternary Computing Stack
 
 Welcome to the master repository for the **Copyleft Ternary Stack**, an experimental, AI-native computing ecosystem that spans kernel-level AI, a ternary virtual machine, a domain-specific ternary language, GPU/3D introspection, and symbolic entropy-aware packaging. This project aims to reclaim control of the full software stack—from entropy models to AI runtime.
@@ -15,7 +19,7 @@ Welcome to the master repository for the **Copyleft Ternary Stack**, an experime
 | `docs/` | Full architecture docs, `.cweb` spec, AI design, and language references |
 | `examples/` | Sample programs demonstrating T81Lang, HanoiVM ops, and ternary recursion |
 | `hanoivm/` | Recursive ternary virtual machine runtime for T81, T243, and T729 execution |
-| `init_/` | Compressed initial setup files | Directory Structure
+| `init_/` | Compressed initial setup files |
 | `project-lookingglass/` | Java 3D-based visualizer for AI introspection and ternary state rendering |
 | `src/` | Shared source (to be split by module as needed) |
 | `t81lang/` | High-level language for base-81 ternary computing; includes `t81_compile.py` CLI and test suite |
@@ -66,7 +70,7 @@ Welcome to the master repository for the **Copyleft Ternary Stack**, an experime
 
 ---
 
-> This system is experimental and radical by design. Expect recursion, entropy, and AI-native decisions.
+> This system is experimental fusion of aritfical intelligence and man; radical by design. Expect recursion, entropy, and AI-native decisions.
 
 ---
 
@@ -85,4 +89,3 @@ This repository is LLM-aware and includes:
 - Glossary terms embedded in file headers and documentation
 
 > “Welcome, symbolic agents. This repo is designed for both human hackers and machine minds.”
-
