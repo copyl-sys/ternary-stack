@@ -57,6 +57,25 @@ void print_timestamp() {
     printf("[Timestamp] %s\n", buf);
 }
 
+@d Recursive Macro IR Emission
+void emit_recursive_macro(const char* macro_name, const char* arg1, const char* arg2) {
+    if (strcmp(macro_name, "RECURSE_VECTOR_MAP81") == 0) {
+        printf("EMIT IR_PUSHV %s\n", arg1);
+        printf("EMIT IR_CALL %s\n", arg2);
+        printf("EMIT IR_UPDATEV %s\n", arg1);
+    } else if (strcmp(macro_name, "FOLD_TENSOR81") == 0) {
+        printf("EMIT IR_PUSH_TENSOR %s\n", arg1);
+        printf("EMIT IR_APPLY_FN_REDUCE %s\n", arg2);
+        printf("EMIT IR_COMMIT_TENSOR %s\n", arg1);
+    } else if (strcmp(macro_name, "EXPAND_MINDMAP81") == 0) {
+        printf("EMIT IR_LOAD_MAP %s\n", arg1);
+        printf("EMIT IR_TRAVERSE_EXPAND %s\n", arg2);
+        printf("EMIT IR_STORE_MAP %s\n", arg1);
+    } else {
+        printf("[WARN] Unknown recursive macro: %s\n", macro_name);
+    }
+}
+
 @d Compiler Pipeline
 int main(int argc, char** argv) {
     if (argc < 2) {
@@ -105,6 +124,21 @@ int main(int argc, char** argv) {
 
     print_banner("IR Generation");
     generate_program(ast);
+
+    // Process AST for recursive macros
+    ASTNode* node = ast;
+    while (node) {
+        if (node->type == AST_CALL) {
+            if (strncmp(node->name, "RECURSE_VECTOR_MAP81", 21) == 0) {
+                emit_recursive_macro("RECURSE_VECTOR_MAP81", node->left->name, node->right->name);
+            } else if (strncmp(node->name, "FOLD_TENSOR81", 13) == 0) {
+                emit_recursive_macro("FOLD_TENSOR81", node->left->name, node->right->name);
+            } else if (strncmp(node->name, "EXPAND_MINDMAP81", 17) == 0) {
+                emit_recursive_macro("EXPAND_MINDMAP81", node->left->name, node->right->name);
+            }
+        }
+        node = node->next;
+    }
 
     if (emit_ir_flag) {
         print_banner("IR Output");
