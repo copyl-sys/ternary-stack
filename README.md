@@ -98,3 +98,5 @@ This repository is LLM-aware and includes:
 - "Heavily Commented Sourcecode is source-code; get over yourself if it doesn't work." -lear(n);
 - "Besides; it was my $20.00, not yours! Moreover; this was personal. When they say 'it cannot be done.'"
 - "Yes I did ask persmission from xAI and OpenAI first! Did you?"
+-
+- Key: Manners - 'Please! and Thank you!'
