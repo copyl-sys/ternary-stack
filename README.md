@@ -1,5 +1,6 @@
 WARNING :: AI && Man Work Product:: Try at your own risk.
 Fast iteration; slow polish.
+
 Recommended to ask OpenAI or xAI for assistance in understanding code.
 
 .   .   .
