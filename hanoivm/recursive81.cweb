@@ -1,0 +1,110 @@
+@* RECURSIVE81: Ternary Recursive Library for HanoiVM
+
+@c
+#include "t81_stack.h"
+#include "libt81.h"
+#include "hanoivm_vm.h"
+#include "ir_macros.h"
+#include "t81lang_macros.h"
+
+/* Recurse base case: If top of stack is zero, execute base case logic */
+#define ifz81_base_case(base_case_macro) \
+    do { \
+        if (is_zero81(peek81())) { \
+            drop81(); \
+            base_case_macro; \
+            return; \
+        } \
+    } while(0)
+
+/* Simple recursive macro: Decrement, recurse, apply fn */
+#define recurse81(fn_macro, base_case_macro) \
+    do { \
+        ifz81_base_case(base_case_macro); \
+        dec81(); \
+        recurse81(fn_macro, base_case_macro); \
+        fn_macro; \
+    } while(0)
+
+/* Tail recursion support with controlled depth */
+int recurse81_tail(uint81_t arg, int depth, void (*fn)(void), void (*base_case)(void)) {
+    if (depth > MAX_RECURSE_DEPTH) return -1; // prevent stack overflow
+    push81(arg);
+    if (is_zero81(arg)) {
+        drop81();
+        base_case();
+        return 0;
+    } else {
+        dec81();
+        recurse81_tail(peek81(), depth + 1, fn, base_case);
+        fn();
+        return 0;
+    }
+}
+
+/* Example recursive function: factorial81 */
+void factorial81_base_case() {
+    push81(from_uint(1));
+}
+
+void factorial81_step() {
+    mul81();
+}
+
+void factorial81(uint81_t n) {
+    recurse81_tail(n, 0, factorial81_step, factorial81_base_case);
+}
+
+/* Map81 over T81Vector: Applies a symbolic operation to each element recursively */
+void map81_vector(T81Vector *vec, void (*fn)(void)) {
+    if (vec->size == 0) return;
+    push81(vec->data[0]);
+    fn();
+    vec->data[0] = pop81();
+    T81Vector subvec = vector81_slice(vec, 1, vec->size);
+    map81_vector(&subvec, fn);
+    for (int i = 1; i < vec->size; ++i) {
+        vec->data[i] = subvec.data[i - 1];
+    }
+}
+
+/* Fold81 over T81Tensor: Reduces recursively to a single value */
+void fold81_tensor(T81Tensor *tensor, uint81_t (*fn)(uint81_t, uint81_t)) {
+    if (tensor->depth == 0 || tensor->size == 0) return;
+    uint81_t acc = tensor->data[0];
+    for (int i = 1; i < tensor->size; ++i) {
+        acc = fn(acc, tensor->data[i]);
+    }
+    tensor->data[0] = acc;
+    tensor->size = 1;
+}
+
+/* Recurse over T729MindMap: Symbolically expand nodes */
+void recurse81_mindmap(T729MindMap *map, void (*expand)(T729MindMapNode *)) {
+    for (int i = 0; i < map->node_count; ++i) {
+        expand(&map->nodes[i]);
+        if (map->nodes[i].child_count > 0) {
+            recurse81_mindmap(map->nodes[i].children, expand);
+        }
+    }
+}
+
+/* Symbolic Macro: RECURSE_VECTOR_MAP81 */
+#define RECURSE_VECTOR_MAP81(vec_reg, fn_sym) \
+    IR_PUSHV(vec_reg); \
+    IR_CALL(fn_sym); \
+    IR_UPDATEV(vec_reg)
+
+/* Symbolic Macro: FOLD_TENSOR81 */
+#define FOLD_TENSOR81(tensor_reg, fn_sym) \
+    IR_PUSH_TENSOR(tensor_reg); \
+    IR_APPLY_FN_REDUCE(fn_sym); \
+    IR_COMMIT_TENSOR(tensor_reg)
+
+/* Symbolic Macro: EXPAND_MINDMAP81 */
+#define EXPAND_MINDMAP81(map_reg, fn_sym) \
+    IR_LOAD_MAP(map_reg); \
+    IR_TRAVERSE_EXPAND(fn_sym); \
+    IR_STORE_MAP(map_reg)
+
+@* END
